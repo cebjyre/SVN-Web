@@ -16,15 +16,15 @@ sub _log {
     my ($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
     my $data = {rev => $rev, author => $author,
 		date => $date, msg => $msg};
-
     $data->{paths} = {map { $_ => {action => $paths->{$_}->action,
 				   copyfrom => $paths->{$_}->copyfrom_path,
 				   copyfromrev => $paths->{$_}->copyfrom_rev,
 				  }} keys %$paths};
     my $root = $self->{repos}->fs->revision_root ($rev, $pool);
+    my $oldroot = $self->{repos}->fs->revision_root ($rev-1, $pool);
     for (keys %{$data->{paths}}) {
 	$data->{paths}{$_}{isdir} = 1
-	    if SVN::Fs::check_path ($root, $_) == $SVN::Core::node_dir;
+	    if $data->{paths}{$_}{action} eq 'D' ? $oldroot->is_dir ($_) : $root->is_dir ($_);
     }
     return $data;
 }
@@ -55,7 +55,7 @@ revision [% rev %] - [% author || '(no author)' %] - [% date %]:<br />
 [% FOREACH path = paths %]
 [% path.value.action %] -
 [% IF path.value.isdir %]
-<a href="[% script %]/[% repos %]/browse[% path.key %]?rev=[% rev %]">[% path.key %]</a>
+<a href="[% script %]/[% repos %]/browse[% path.key %]/?rev=[% rev %]">[% path.key %]</a>
 [% IF path.value.copyfrom %]
 (from
 <a href="[% script %]/[% repos %]/browse[% path.value.copyfrom %]/?rev=[% path.value.copyfromrev %]">[% path.value.copyfrom %]:[% path.value.copyfromrev %]</a>
@@ -63,8 +63,12 @@ revision [% rev %] - [% author || '(no author)' %] - [% date %]:<br />
 [% END %]
 
 [% ELSE %]
+[% IF path.value.action == 'D' %]
+[% path.key %]
+[% ELSE %]
 <a href="[% script %]/[% repos %]/log[% path.key %]#rev[% rev %]">[% path.key %]</a>
 <a href="[% script %]/[% repos %]/checkout[% path.key %]?rev=[% rev %]">(checkout)</a>
+[% END %]
 [% IF path.value.copyfrom %]
 (from
 <a href="[% script %]/[% repos %]/log[% path.value.copyfrom %]#rev[% path.value.copyfromrev %]">[% path.value.copyfrom %]:[% path.value.copyfromrev %]</a>

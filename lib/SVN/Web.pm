@@ -1,8 +1,8 @@
 package SVN::Web;
-$VERSION = '0.30';
+$VERSION = '0.35';
 
 use strict;
-use SVN::Core '0.28';
+use SVN::Core;
 use SVN::Repos;
 use YAML ();
 use Template;
@@ -101,7 +101,9 @@ sub run {
     # should use attribute or things alike
     my $branch = get_handler ({%$cfg, action => 'branch'});
     my $obj = get_handler ({%$cfg, branch => $branch});
-    my $html = $obj->run;
+    my $html = eval { $obj->run };
+
+    die "operation failed: $@" if $@;
 
     if (ref ($html)) {
 	print $cfg->{cgi}->header(-charset => $html->{charset} || 'UTF-8',
@@ -170,7 +172,7 @@ sub handler {
     $repos =~ s/^$base// or die "path $repos not inside base $base";
     return &Apache::FORBIDDEN unless $repos;
 
-    my $script = $1 if $r->uri =~ m|^((?:/\w+)+)/$repos| or die "can't find script";
+    $script = $1 if $r->uri =~ m|^((?:/\w+)+)/$repos| or die "can't find script";
     chdir ($base);
     $pool ||= SVN::Pool->new_default;
     $config ||= load_config ('config.yaml');

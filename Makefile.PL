@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 use ExtUtils::MakeMaker;
 
+my $required_svn = '0.29.0';
+
 WriteMakefile(
     AUTHOR              => 'Chia-liang Kao (clkao@clkao.org)',
     ABSTRACT            => 'Subversion repository web frontend',
@@ -9,7 +11,7 @@ WriteMakefile(
     DISTNAME            => 'SVN-Web',
     EXE_FILES		=> [ 'svnweb-install' ],
     PREREQ_PM           => {
-        'SVN::Core'   => '0.28',
+        'SVN::Core'   => $required_svn,
         'Template'    => '0',
         'YAML'        => '0',
         'XML::RSS'    => '0',
@@ -21,3 +23,5 @@ WriteMakefile(
     },
 );
 
+die "SVN::Core $required_svn must be manually installed"
+    unless eval {require SVN::Core} && $SVN::Core::VERSION >= $required_svn;

@@ -1,4 +1,8 @@
-[Changes for 0.30 - Aug 26, 2003]
+[Changes for 0.35 - Nov 19, 2003]
+* Fix RSS links to revisions under mod_perl.
+* Misc fixes and API catch-up.
+
+[Changes for 0.30 - Aug 27, 2003]
 * Fix - Escape log message properly.
 * Add log message when describing a revision.
 * Sort the entries in browsing.

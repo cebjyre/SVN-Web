@@ -17,3 +17,9 @@
 * cache more branch info for performance.
 
 * display branches only if that branch contains the current directory.
+
+* use svn_fs_history_t to get fixed amount of log first.
+
+* sort branch info in browse.
+
+* supply last-modified in header and check it.
