@@ -1,5 +1,5 @@
 package SVN::Web;
-$VERSION = '0.1';
+$VERSION = '0.11';
 
 use strict;
 use SVN::Core '0.28';
@@ -109,7 +109,7 @@ sub run_cgi {
 
 	run ({ repos => $repos,
 	       action => $action,
-	       path => $path,
+	       path => '/'.$path,
 	       cgi => $cgi});
 	last if $cgi_class eq 'CGI';
     }
