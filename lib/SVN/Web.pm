@@ -1,5 +1,5 @@
 package SVN::Web;
-$VERSION = '0.2';
+$VERSION = '0.30';
 
 use strict;
 use SVN::Core '0.28';
@@ -30,6 +30,19 @@ diff.
 
 SVN::Web also tracks the branching feature (node copy) of subversion,
 so you can easily see the relationship between branches.
+
+=head1 MODPERL
+
+You can enable modperl support of SVN::Web with the following in the
+apache configuration:
+
+    Alias /svnweb /path/to/svnweb
+    <Directory /path/to/svnweb/>
+      AllowOverride None
+      Options None
+      SetHandler perl-script
+      PerlHandler SVN::Web
+    </Directory>
 
 =cut
 
@@ -79,9 +92,9 @@ sub get_handler {
 sub run {
     my $cfg = shift;
 
-    my $pool = SVN::Pool->new_default;
-
     get_repos ($cfg->{repos});
+
+    my $pool = SVN::Pool->new_default_sub;
 
     @{$cfg->{navpaths}} = File::Spec::Unix->splitdir ($cfg->{path});
     shift @{$cfg->{navpaths}};
@@ -96,7 +109,6 @@ sub run {
 	if ($html->{template}) {
 	    $template->process ($html->{template},
 				{ %$cfg,
-				  script => $ENV{SCRIPT_NAME},
 				  %{$html->{data}}})
 		or die $template->error;
 	}
@@ -110,11 +122,14 @@ sub run {
     }
 }
 
+my $pool; # global pool for holding opened repos
+eval "use CGI::Carp qw(fatalsToBrowser)";
+
 sub run_cgi {
-    eval "use CGI::Carp qw(fatalsToBrowser)";
     die $@ if $@;
 
     my $cgi_class = (eval { require CGI::Fast; 1 } ? 'CGI::Fast' : 'CGI');
+    $pool ||= SVN::Pool->new_default;
     $config = load_config ('config.yaml');
     $template = Template->new ({ INCLUDE_PATH => 'template/',
 				 PRE_PROCESS => 'header',
@@ -129,13 +144,50 @@ sub run_cgi {
 	run ({ repos => $repos,
 	       action => $action,
 	       path => '/'.$path,
+	       script =>$ENV{SCRIPT_NAME},
 	       cgi => $cgi});
 	last if $cgi_class eq 'CGI';
     }
 }
 
-sub handler {
 
+
+
+sub handler {
+    eval "
+	use Apache::RequestRec ();
+	use Apache::RequestUtil ();
+	use Apache::RequestIO ();
+	use Apache::Response ();
+	use Apache::Const;
+        use CGI;
+    ";
+
+    my $r = shift;
+    my $base = $r->location;
+    my $repos = $r->filename;
+    my $script = $r->uri;
+    $repos =~ s/^$base// or die "path $repos not inside base $base";
+    return &Apache::FORBIDDEN unless $repos;
+
+    my $script = $1 if $r->uri =~ m|^((?:/\w+)+)/$repos| or die "can't find script";
+    chdir ($base);
+    $pool ||= SVN::Pool->new_default;
+    $config ||= load_config ('config.yaml');
+    $template ||= Template->new ({ INCLUDE_PATH => 'template/',
+				   PRE_PROCESS => 'header',
+				   POST_PROCESS => 'footer' });
+    my (undef, $action, $path) = split ('/', $r->path_info, 3);
+    $action ||= 'browse';
+    $path ||= '';
+
+    run ({ repos => $repos,
+	   action => $action,
+	   script => $script,
+	   path => '/'.$path,
+	   cgi => CGI->new});
+
+   return &Apache::OK;
 }
 
 =head1 AUTHORS

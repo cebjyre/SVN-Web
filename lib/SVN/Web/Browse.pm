@@ -41,6 +41,9 @@ sub run {
 
     }
 
+    # TODO: custom sorting
+    @$entries = sort {($b->{isdir} <=> $a->{isdir}) || ($a->{name} cmp $b->{name})} @$entries;
+
     return { template => 'browse',
 	     data => { entries => $entries, revision => $rev,
 		       branchto => $self->{branch}->branchto ($self->{path}, $rev),

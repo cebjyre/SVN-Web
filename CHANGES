@@ -1,3 +1,10 @@
+[Changes for 0.30 - Aug 26, 2003]
+* Fix - Escape log message properly.
+* Add log message when describing a revision.
+* Sort the entries in browsing.
+* Adjust pool usage for opened repos so it's easier for modperl to work
+* Add mod_perl support.
+
 [Changes for 0.2 - Aug 26, 2003]
 
 * Add path navigation support.

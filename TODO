@@ -7,3 +7,13 @@
 * better default template.
 
 * provide link with svn dav url.
+
+* users might only be interested in the latest few active
+  branches/tags - hlb
+  - as well as log history. it shouldn't list all by default.
+
+* some switches for svnweb-install to do upgrade and file merging.
+
+* cache more branch info for performance.
+
+* display branches only if that branch contains the current directory.

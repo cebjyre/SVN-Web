@@ -26,7 +26,8 @@ sub run {
 		 );
 
     $_ && $rss->add_item
-	( title       => "revision $_->{rev}",
+	( title       => "$_->{rev} - ".substr ((split("\n",$_->{msg}, 1))[0],
+						0, 40),
 	  link        => "$url/revision/?rev=$_->{rev}",
 	  dc => { date		=> $_->{date},
 		  creator	=> $_->{author},

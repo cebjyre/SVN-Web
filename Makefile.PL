@@ -12,6 +12,7 @@ WriteMakefile(
         'SVN::Core'   => '0.28',
         'Template'    => '0',
         'YAML'        => '0',
+        'XML::RSS'    => '0',
         'Text::Diff'  => '0',
     },
     dist                => {

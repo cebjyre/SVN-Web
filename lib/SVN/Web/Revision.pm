@@ -49,7 +49,10 @@ sub template {
 
 __DATA__
 revision [% rev %] - [% author || '(no author)' %] - [% date %]:<br />
-[% FOREACH path IN paths %]
+<p>
+[% msg | html | html_line_break %]
+</p>
+[% FOREACH path = paths %]
 [% path.value.action %] -
 [% IF path.value.isdir %]
 <a href="[% script %]/[% repos %]/browse[% path.key %]?rev=[% rev %]">[% path.key %]</a>

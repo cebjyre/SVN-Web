@@ -72,5 +72,5 @@ branchpoint for
 [% prev = loop.count %]
 <a href="[% script %]/[% repos %]/diff[% path %]?rev1=[% revs.$prev.rev %]&rev2=[% rev %]">(Diff to previous)</a><br/>
 [% END %]
-[% msg %]
+[% msg | html | html_line_break %]
 [% END %]
