@@ -1,9 +1,20 @@
-README
-TODO
+bin/svnweb-install
 CHANGES
-Makefile.PL
+SIGNATURE
+inc/ExtUtils/AutoInstall.pm
+inc/Module/Install.pm
+inc/Module/Install/AutoInstall.pm
+inc/Module/Install/Base.pm
+inc/Module/Install/Can.pm
+inc/Module/Install/Fetch.pm
+inc/Module/Install/Include.pm
+inc/Module/Install/Makefile.pm
+inc/Module/Install/Metadata.pm
+inc/Module/Install/Win32.pm
+inc/Module/Install/WriteAll.pm
 lib/SVN/Web.pm
 lib/SVN/Web/Branch.pm
+lib/SVN/Web/Branch/YAML.pm
 lib/SVN/Web/Browse.pm
 lib/SVN/Web/Checkout.pm
 lib/SVN/Web/Diff.pm
@@ -14,8 +25,17 @@ lib/SVN/Web/List.pm
 lib/SVN/Web/Log.pm
 lib/SVN/Web/Revision.pm
 lib/SVN/Web/RSS.pm
-lib/SVN/Web/Template.pm
-MANIFEST
+lib/SVN/Web/Style/common.css
+lib/SVN/Web/Style/styles-hlb.css
+lib/SVN/Web/Template/browse
+lib/SVN/Web/Template/footer
+lib/SVN/Web/Template/header
+lib/SVN/Web/Template/list
+lib/SVN/Web/Template/log
+lib/SVN/Web/Template/revision
+Makefile.PL
+MANIFEST			This list of files
+META.yml
+README
 t/1use.t
-svnweb-install
-META.yml                                Module meta-data (added by MakeMaker)
+TODO

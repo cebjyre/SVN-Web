@@ -1,28 +1,25 @@
 #!/usr/bin/perl
-use ExtUtils::MakeMaker;
+my $required_svn = '1.0.4';
 
-my $required_svn = '0.36.0';
+use inc::Module::Install;
 
-WriteMakefile(
-    AUTHOR              => 'Chia-liang Kao (clkao@clkao.org)',
-    ABSTRACT            => 'Subversion repository web frontend',
-    NAME                => 'SVN::Web',
-    VERSION_FROM        => 'lib/SVN/Web.pm',
-    DISTNAME            => 'SVN-Web',
-    EXE_FILES		=> [ 'svnweb-install' ],
-    PREREQ_PM           => {
+name		('SVN-Web');
+author		('Chia-liang Kao <clkao@clkao.org>');
+abstract	('Subversion repository web frontend');
+license		('perl');
+version_from	('lib/SVN/Web.pm');
+requires(
         'SVN::Core'   => $required_svn,
         'Template'    => '0',
         'YAML'        => '0',
         'XML::RSS'    => '0',
         'Text::Diff'  => '0',
-	'Locale::Maketext::Simple' => 0,
-    },
-    dist                => {
-        COMPRESS        => 'gzip -9',
-        SUFFIX          => '.gz',
-    },
-);
+	'Locale::Maketext::Simple' => 0);
+
+include('ExtUtils::AutoInstall');
+auto_install();
+
+WriteAll( sign => 1 );
 
 die "SVN::Core $required_svn must be manually installed"
     unless eval {require SVN::Core} && $SVN::Core::VERSION >= $required_svn;

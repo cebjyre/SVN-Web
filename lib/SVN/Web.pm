@@ -1,6 +1,6 @@
 package SVN::Web;
 use strict;
-our $VERSION = '0.36';
+our $VERSION = '0.37';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
@@ -16,7 +16,7 @@ use Locale::Maketext::Simple (
 	    : substr(__FILE__, 0, -3) . '/I18N'
     ),
     Style => 'gettext',
-    Decode => 1,
+    Decode => 0,
 );
 }
 
@@ -85,6 +85,8 @@ sub set_config {
     $config = shift;
 }
 
+my $repospool;
+
 sub get_repos {
     my ($repos) = @_;
 
@@ -96,9 +98,9 @@ sub get_repos {
 		-d "$config->{reposparent}/$repos")
 	    || exists $config->{repos}{$repos};
 
-    $REPOS{$repos} ||=  SVN::Repos::open
+    $REPOS{$repos} ||= SVN::Repos::open
 	($config->{reposparent} ? "$config->{reposparent}/$repos"
-	 : $config->{repos}{$repos}) or die $!;
+	 : $config->{repos}{$repos}, $repospool) or die $!;
 
     if ( $config->{block} ) {
         foreach my $blocked ( @{ $config->{block} } ) {
@@ -254,6 +256,7 @@ sub run_cgi {
 	       path => '/'.$path,
 	       script =>$ENV{SCRIPT_NAME},
                output_sub => \&cgi_output,
+	       style => $config->{style},
 	       cgi => $cgi});
 	last if $cgi_class eq 'CGI';
     }
@@ -302,6 +305,7 @@ sub handler {
 	   path => '/'.$path,
            output_sub => \&mod_perl_output,
 	   request => $r,
+	   style   => $config->{style},
            cgi     => ref ($r) eq 'Apache::Request' ? $r : CGI->new});
 
    return &Apache::OK;
@@ -313,7 +317,7 @@ Chia-liang Kao E<lt>clkao@clkao.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright 2003 by Chia-liang Kao E<lt>clkao@clkao.orgE<gt>.
+Copyright 2003-2004 by Chia-liang Kao E<lt>clkao@clkao.orgE<gt>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

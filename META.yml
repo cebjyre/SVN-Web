@@ -1,16 +1,17 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         SVN-Web
-version:      0.36
-version_from: lib/SVN/Web.pm
-installdirs:  site
-requires:
-    Locale::Maketext::Simple:      0
-    SVN::Core:                     0.36.0
-    Template:                      0
-    Text::Diff:                    0
-    XML::RSS:                      0
-    YAML:                          0
-
+name: SVN-Web
+version: 0.37
+abstract: Subversion repository web frontend
+author: Chia-liang Kao <clkao@clkao.org>
+license: perl
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.21
+requires:
+  SVN::Core: 1.0.4
+  Template: 0
+  YAML: 0
+  XML::RSS: 0
+  Text::Diff: 0
+  Locale::Maketext::Simple: 0
+no_index:
+  directory:
+    - inc
+generated_by: Module::Install version 0.330

@@ -8,22 +8,24 @@ use File::Basename;
 die "already have config.yaml" if -e 'config.yaml';
 
 open my $fh, ">config.yaml";
-mkdir 'template';
 for (@SVN::Web::PLUGINS) {
     my $module = $_;
     s/^(\w)/\U$1/;
     print $fh lc(${module}).'_class:'.(' 'x(20-(length $_)))."SVN::Web::$_\n";
-    eval "require SVN::Web::${_}" or die $@;
-    my $templates = eval "&SVN::Web::${_}::template" or next;
-    for (keys %$templates) {
-	open my $tfh, ">template/$_";
-	print $tfh $templates->{$_};
-    }
+}
+
+my %targets = (
+    Template => 'template',
+    I18N     => 'po',
+    Style    => 'css',
+);
+
+while (my ($from, $to) = each %targets) {
     my $path = $INC{'SVN/Web.pm'};
-    if ($path =~ s{.pm$}{/I18N}i) {
-	mkdir "po";
-	copy($_ => "po/".basename($_)) for glob("$path/*.po");
-    }
+    $path =~ s{.pm$}{/$from}i or next;
+
+    mkdir $to;
+    copy($_ => "$to/".basename($_)) for glob("$path/*");
 }
 
 print $fh <<END;
@@ -43,6 +45,8 @@ print $fh <<END;
 #block:
 #  - 'blocked1'
 #  - 'blocked2'
+#
+# style: '/svnweb/css/styles-hlb.css'
 
 END
 

@@ -20,26 +20,4 @@ sub run {
                       reposcount => scalar @repos}};
 }
 
-sub template {
-    local $/;
-    return {list => <DATA>};
-}
-
 1;
-
-__DATA__
-[% IF reposcount %]
-<p>
-Please select a repository to browse:
-</p>
-
-<ul>
-  [% FOREACH r = repos %]
- <li><a href="[% script %]/[% r %]">[% r %]</a></li>
-  [% END %]
-</ul>
-[% ELSE %]
-<p>
-No repositories are available for browsing.
-</p>
-[% END %]

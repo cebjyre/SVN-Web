@@ -1,10 +1,15 @@
-package SVN::Web::Template;
-
-sub template {
-    return { header => q|<html><!-- css, etc here -->
+<html><head>
+<title>SVN::Web</title>
+<link rel="stylesheet" href="[% style %]" type="text/css" />
+</head><body>
 [% UNLESS nonav %]
+<div id="body-container">
+<div id="banner">
+<h1>SVN::Web - [%|l%][% action %][%END%]</h1>
+</div>
+<div id="links">
 <div id="navpath">
-<a href="[% script %]">Repository list</a><br />
+<a href="[% script %]">[%|l%]Repository list[%END%]</a> |
   [% url = [script,repos,''] %]
   [% url = url.join('/') %]
   [% urlpath = ['',''] %]
@@ -20,12 +25,7 @@ sub template {
     [% END %]
   [% END %]
 </div>
+</div>
+<div id="content">
 [% END %]
-|,
-	     footer => '<div align="right"><em>[%|l%]Powered by SVN::Web[%END%]</em></div>
-</html>
-',
-	   };
-}
-
-1;
+<div class="blog">

@@ -4,8 +4,6 @@
 
 * distinguish different node under same path in different revisions.
 
-* better default template.
-
 * provide link with svn dav url.
 
 * users might only be interested in the latest few active
