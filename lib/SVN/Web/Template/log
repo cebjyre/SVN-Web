@@ -5,6 +5,9 @@
 <a href="[% script %]/[% repos %]/browse[% path %]">[%|l%](browse)[%END%]</a>
 [% END %]
 </div>
+<div class="title">
+[%|l%]Show last[%END%]<form><input name="limit" size=4 value="[% limit %]">changes<input type="submit" name="submit" value="[%|l%]Show[%END%]"></form>
+</div>
 [% FOREACH revs %]
 <hr />
 <a name="rev[% rev %]"/>

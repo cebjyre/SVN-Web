@@ -1,5 +1,5 @@
 This file contains message digests of all files listed in MANIFEST,
-signed via the Module::Signature module, version 0.38.
+signed via the Module::Signature module, version 0.41.
 
 To verify the content in this distribution, first make sure you have
 Module::Signature installed, then type:
@@ -14,50 +14,51 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 519f6d3bd4488fea11767dec09486dbfa74b1915 CHANGES
-SHA1 91a7ead9a00bfc52d85fadd6438fc25079af90e8 MANIFEST
-SHA1 9a5d9904cd17bd1d44f02e225282325b3c8c2ec0 META.yml
-SHA1 2545bf704e21c2c12dea041738e9fbdfa9ba7451 Makefile.PL
-SHA1 0ae02ffeff6554ec02d2d767585c11ee28a94cdc README
+SHA1 76e8458ca790f84c27680abfb82ce08fcebe1e6f CHANGES
+SHA1 7531300608eab3e132cb4d6a39d2aa3bc4d8ee79 MANIFEST
+SHA1 a7b64787b4011e31f847124f6fdc43db7c0e9efe META.yml
+SHA1 82d8f8129b757776b85406c65b7f2cc43ff35182 Makefile.PL
+SHA1 13ffd942b1887323b650f174ed913dc60fab97d0 README
 SHA1 fb1bc1766154f794b2d57324f66a927579e691a4 TODO
 SHA1 70811d642e3e8c01890339a5298c502433815669 bin/svnweb-install
-SHA1 c4044c2ca3530e09c9f1e64fbd4587f9660a53fa inc/ExtUtils/AutoInstall.pm
-SHA1 3f5fd5cb6904e62e2b6bf159ebffaf0cb72e80d5 inc/Module/Install.pm
-SHA1 e69e76e2d33f34a90382c6ab74ebf9cf2dc858e5 inc/Module/Install/AutoInstall.pm
-SHA1 adfc45c82642d3726cc2c871c49062c000ccb0e4 inc/Module/Install/Base.pm
-SHA1 ba881ecfb8e8b9c4ebbc409b8025cac973511197 inc/Module/Install/Can.pm
-SHA1 c03e641fcc136de2fbdd62ce4e82e2dfa8410962 inc/Module/Install/Fetch.pm
-SHA1 8119fb04681f0085c6b466f592adc8d408861610 inc/Module/Install/Include.pm
-SHA1 876226cc896a285b2409db88d9033071c68cec50 inc/Module/Install/Makefile.pm
-SHA1 e5ab6153407ff571eefbb366d8cf18671c0974e4 inc/Module/Install/Metadata.pm
-SHA1 1915204e46fcee6faf528f8d86aec215e332cc7b inc/Module/Install/Win32.pm
-SHA1 0c911bbda0f5e2cd401249412231a3be3548fe20 inc/Module/Install/WriteAll.pm
-SHA1 e5abafab7058ba2875183534732926ce760634be lib/SVN/Web.pm
+SHA1 7338f67a9d2ef18cfa49a86cc1cdd9b8e1bf2ea4 inc/ExtUtils/AutoInstall.pm
+SHA1 06d883487127fa0026311904e7c4867e850c505c inc/Module/Install.pm
+SHA1 25c1920fccb1077b2e11ed0f18df50089d2beb5d inc/Module/Install/AutoInstall.pm
+SHA1 2771d5c5033e94c4789c66a0aad4e21c62985ce9 inc/Module/Install/Base.pm
+SHA1 b5e2d5fc07b92d042c97631d2b00f61f974fc164 inc/Module/Install/Can.pm
+SHA1 c3747aa4bd8faa530c974b78f729c67f15c6f928 inc/Module/Install/Fetch.pm
+SHA1 c6d2a330e2a8cb3a1db7bfc4236fea9a8aafe297 inc/Module/Install/Include.pm
+SHA1 d8bc0d6e0a82d2b7533bdd3de467593094cc8b2c inc/Module/Install/Makefile.pm
+SHA1 6fca1d05c6b9a8f10865de5be4fefb9bfa7a52e9 inc/Module/Install/Metadata.pm
+SHA1 2e6f5004ac895a26c41f043bf8fa5efb4f5b21c4 inc/Module/Install/Scripts.pm
+SHA1 6b051a6d3ed824df40343a7ff09b66282e1783c3 inc/Module/Install/Win32.pm
+SHA1 77f82ce7c623e05304ac9aae05bcd1a5558fadbb inc/Module/Install/WriteAll.pm
+SHA1 737d6821618aa073fd068578afafa36dcbd7c02c lib/SVN/Web.pm
 SHA1 56e3faa950cc7a0aad82c16af87405c18c71c752 lib/SVN/Web/Branch.pm
 SHA1 91f203123b660155d78b3c3fcfb1a97e3c14d8f9 lib/SVN/Web/Branch/YAML.pm
-SHA1 b330aee2ba7763f6671b3e8f08b170a2464857b0 lib/SVN/Web/Browse.pm
+SHA1 708677d7ef952b72cef0028250ce01da24e39c03 lib/SVN/Web/Browse.pm
 SHA1 aea52ac51dda66b90e95880974d62d2c43420435 lib/SVN/Web/Checkout.pm
 SHA1 dd52b6f1a86c03b053e159e33a6387b9fc4ce7a4 lib/SVN/Web/Diff.pm
 SHA1 9d17eabaf1724b406ec0540baa0aa2c8138ea6f2 lib/SVN/Web/I18N/en.po
 SHA1 33e15dcac3cb36b27637ac64b3451a5a03530245 lib/SVN/Web/I18N/zh_cn.po
 SHA1 102c171551c0c5cc3f0bd59761690b1b443f3d6a lib/SVN/Web/I18N/zh_tw.po
 SHA1 c89a3c5f4a2aabee13dab96013436d7d1d942416 lib/SVN/Web/List.pm
-SHA1 caec7b256a41a7cbbbf6d30b749ac45a2745b1f9 lib/SVN/Web/Log.pm
+SHA1 ee79f82afffa28f66ac8fa95d2f6dc8974aa8001 lib/SVN/Web/Log.pm
 SHA1 07b8ddb689578bfd739ea7a5f30a8245106afdaf lib/SVN/Web/RSS.pm
 SHA1 1f0ea1f0462c4bb043a3c31b74d52dee4b4537b0 lib/SVN/Web/Revision.pm
 SHA1 4e09f47629601557603649a131fb7e259abe7a8c lib/SVN/Web/Style/common.css
 SHA1 c7f365aa5f266c338dcf72609844b7b35e07a024 lib/SVN/Web/Style/styles-hlb.css
 SHA1 22e39ec584affaf86677fc6f2cf8e4bf9762eb81 lib/SVN/Web/Template/browse
 SHA1 fbc2f950d3642fe1f8af3689a0b9c295991bba4d lib/SVN/Web/Template/footer
-SHA1 3ac2bf5140862c8d43d40a9b17aa92b42e864f0c lib/SVN/Web/Template/header
+SHA1 0c08ec189de8fe1852221e6672e9ec5e447c0afb lib/SVN/Web/Template/header
 SHA1 e9c47085c2370ec8afec2ded8910fa67feabee4d lib/SVN/Web/Template/list
-SHA1 c0d6080ad3983103b57e2eb33aa8cfbd254e314c lib/SVN/Web/Template/log
+SHA1 a27b012ebff89993d657988902af00b7207a769c lib/SVN/Web/Template/log
 SHA1 fe8fe9ea446ee173428f48d64f3e3992d6818404 lib/SVN/Web/Template/revision
-SHA1 b3fb4004de57687a4f9410a835d49fa9f51d2fa8 t/1use.t
+SHA1 0bfc1592168d5617c116e708164e0daad3e63f72 t/1use.t
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (FreeBSD)
+Version: GnuPG v1.2.6 (FreeBSD)
 
-iD8DBQFAvx9yk1XldlEkA5YRApocAJ0XnAoecyYH9ZraeEN7CNcE88rzlQCcDvqV
-GHL7xV5nfKug2n6wOLsz4to=
-=Pj7y
+iD8DBQFBoJ3/k1XldlEkA5YRAjzeAJsG29pD0ngRTde7RPIz1ST8LAJOgACfZ4rF
+eI37sosfI2/1nfhHwNO4c5k=
+=ffeW
 -----END PGP SIGNATURE-----

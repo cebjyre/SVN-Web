@@ -1,6 +1,6 @@
 package SVN::Web;
 use strict;
-our $VERSION = '0.37';
+our $VERSION = '0.38';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
@@ -85,7 +85,7 @@ sub set_config {
     $config = shift;
 }
 
-my $repospool;
+my $repospool = SVN::Pool->new;
 
 sub get_repos {
     my ($repos) = @_;
@@ -149,7 +149,7 @@ sub get_handler {
 sub run {
     my $cfg = shift;
 
-    my $pool = SVN::Pool->new_default_sub;
+    my $pool = SVN::Pool->new_default;
 
     my $obj;
     my $html;
@@ -204,8 +204,8 @@ sub mod_perl_output {
 
     if (ref ($html)) {
         my $content_type = $html->{mimetype} || 'text/html';
-        $content_type .= '; ';
-        $content_type .= $html->{charset} ? $html->{charset} : 'UTF-8';
+        $content_type .= '; charset=';
+        $content_type .= $html->{charset} || 'UTF-8';
 	$cfg->{request}->content_type($content_type);
 
 	if ($html->{template}) {
@@ -227,7 +227,7 @@ sub mod_perl_output {
     }
 }
 
-my $pool; # global pool for holding opened repos
+our $pool; # global pool for holding opened repos
 
 sub get_template {
     Template->new ({ INCLUDE_PATH => ($config->{templatedir} || 'template/'),

@@ -1,9 +1,9 @@
-#line 1 "inc/ExtUtils/AutoInstall.pm - /usr/local/lib/perl5/site_perl/5.8.2/ExtUtils/AutoInstall.pm"
+#line 1 "inc/ExtUtils/AutoInstall.pm - /usr/local/lib/perl5/site_perl/5.8.5/ExtUtils/AutoInstall.pm"
 # $File: //member/autrijus/ExtUtils-AutoInstall/lib/ExtUtils/AutoInstall.pm $ 
 # $Revision: #14 $ $Change: 10538 $ $DateTime: 2004/04/29 17:55:36 $ vim: expandtab shiftwidth=4
 
 package ExtUtils::AutoInstall;
-$ExtUtils::AutoInstall::VERSION = '0.59';
+$ExtUtils::AutoInstall::VERSION = '0.61';
 
 use strict;
 use Cwd ();
@@ -285,7 +285,11 @@ sub _install_cpanplus {
     my $cp   = CPANPLUS::Backend->new;
     my $conf = $cp->configure_object;
 
-    return unless _can_write($conf->_get_build('base'));
+    return unless _can_write(
+        $conf->can('conf')
+            ? $conf->get_conf('base')       # 0.05x+
+            : $conf->_get_build('base')     # 0.04x
+    );
 
     # if we're root, set UNINST=1 to avoid trouble unless user asked for it.
     my $makeflags = $conf->get_conf('makeflags') || '';
@@ -394,7 +398,7 @@ sub _install_cpan {
                 $CPAN::META->instance(
                     'CPAN::Distribution',
                     $obj->cpan_file,
-                )->{install}
+                )->{install} if $CPAN::META
             };
 
             if ($rv eq 'YES') {
@@ -642,4 +646,4 @@ installdeps ::
 
 __END__
 
-#line 969
+#line 973

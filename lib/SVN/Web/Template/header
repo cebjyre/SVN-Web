@@ -1,6 +1,16 @@
 <html><head>
 <title>SVN::Web</title>
+[% IF style %]
 <link rel="stylesheet" href="[% style %]" type="text/css" />
+[% ELSE %]
+<link rel="stylesheet" title="csszen" type="text/css" href="http://css.elixus.org/styles-csszen.css" />
+<script type="text/javascript" src="http://css.elixus.org/SetStyle.js"></script>
+<script type="text/javascript">
+    <!--
+    GenerateCoreStyleSheets(null);
+    -->
+</script>
+[% END %]
 </head><body>
 [% UNLESS nonav %]
 <div id="body-container">

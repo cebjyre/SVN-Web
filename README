@@ -23,12 +23,13 @@ see the pod in SVN::Web for more information.
 * Latest version
 
 The latest SVN::Web could be found at:
-http://svn.elixus.org/svnweb/repos/browse/member/clkao/SVN-Web/
 
+  http://svn.clkao.org/svnweb/member/browse/clkao/modules/SVN-Web/
+  svn://svn.clkao.org/member/clkao/modules/SVN-Web/
 
 * Copyright
 
-Copyright 2003 by Chia-liang Kao clkao@clkao.org.
+Copyright 2003-2004 by Chia-liang Kao clkao@clkao.org.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

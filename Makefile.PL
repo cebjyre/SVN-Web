@@ -6,10 +6,10 @@ use inc::Module::Install;
 name		('SVN-Web');
 author		('Chia-liang Kao <clkao@clkao.org>');
 abstract	('Subversion repository web frontend');
+install_script  ('bin/svnweb-install');
 license		('perl');
 version_from	('lib/SVN/Web.pm');
 requires(
-        'SVN::Core'   => $required_svn,
         'Template'    => '0',
         'YAML'        => '0',
         'XML::RSS'    => '0',
@@ -21,5 +21,10 @@ auto_install();
 
 WriteAll( sign => 1 );
 
-die "SVN::Core $required_svn must be manually installed"
-    unless eval {require SVN::Core} && $SVN::Core::VERSION >= $required_svn;
+$::VERSION = $required_svn;
+die << "." unless eval {require SVN::Core; SVN::Core->VERSION >= main->VERSION };
+===> Warning: SVN::Core missing or outdated.
+Please manually install SVN::Core by compiling Subversion
+(version $required_svn or above) with SWIG/Perl bindings,
+and try this installation process again.
+.
