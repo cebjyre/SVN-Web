@@ -1,0 +1,51 @@
+#!/usr/bin/perl
+use strict;
+use SVN::Web;
+use Config;
+
+die "already have config.yaml" if -e 'config.yaml';
+
+open my $fh, ">config.yaml";
+mkdir 'template';
+for (@SVN::Web::PLUGINS) {
+    my $module = $_;
+    s/^(\w)/\U$1/;
+    print $fh "${module}_class:".(' 'x(20-(length $_)))."SVN::Web::$_\n";
+    eval "require SVN::Web::${_}" or die $@;
+    my $templates = eval "&SVN::Web::${_}::template" or next;
+    for (keys %$templates) {
+	open my $tfh, ">template/$_";
+	print $tfh $templates->{$_};
+    }
+}
+
+print $fh <<END;
+# set your repository path below:
+#
+#repos:
+#  test: '/tmp/svnweb-test'
+#  test2: '/tmp/svnweb-test2'
+#
+# or a parent path contains repositories
+#
+#reposparent: '/path/to/repositories'
+END
+
+close $fh;
+
+open $fh, '>index.cgi';
+print $fh <<"END";
+$Config::Config{startperl} -w
+#use lib '.';
+#use lib '../lib';
+use SVN::Web;
+SVN::Web::run_cgi();
+END
+
+close $fh;
+
+chmod 0755,'index.cgi';
+
+# XXX: export the template too
+
+print "SVN::Web now installed! please see config.yaml\n";
