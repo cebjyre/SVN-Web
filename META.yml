@@ -1,12 +1,13 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         SVN-Web
-version:      0.11
+version:      0.2
 version_from: lib/SVN/Web.pm
 installdirs:  site
 requires:
     SVN::Core:                     0.28
     Template:                      0
+    Text::Diff:                    0
     YAML:                          0
 
 distribution_type: module

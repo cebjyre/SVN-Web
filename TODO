@@ -1,0 +1,9 @@
+* cleanup the template structure with hooks
+
+* diff directory and branch support.
+
+* distinguish different node under same path in different revisions.
+
+* better default template.
+
+* provide link with svn dav url.

@@ -22,9 +22,10 @@ sub run {
     die "not a file" unless SVN::Fs::check_path ($root, $self->{path})
 	== $SVN::Core::node_file;
 
-    # XXX: add mime type
     my $file = SVN::Fs::file_contents ($root, $self->{path});
     local $/;
-    return {mimetype => 'text/plain', body => <$file>};
+    return {mimetype => SVN::Fs::node_prop ($root, $self->{path},
+					    'svn:mime-type') ||'text/plain',
+	    body => <$file>};
 }
 1;

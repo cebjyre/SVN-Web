@@ -9,9 +9,10 @@ WriteMakefile(
     DISTNAME            => 'SVN-Web',
     EXE_FILES		=> [ 'svnweb-install' ],
     PREREQ_PM           => {
-        'SVN::Core'   => 0.28,
-        'Template'    => 0,
-        'YAML'        => 0,
+        'SVN::Core'   => '0.28',
+        'Template'    => '0',
+        'YAML'        => '0',
+        'Text::Diff'  => '0',
     },
     dist                => {
         COMPRESS        => 'gzip -9',

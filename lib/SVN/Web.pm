@@ -1,11 +1,12 @@
 package SVN::Web;
-$VERSION = '0.11';
+$VERSION = '0.2';
 
 use strict;
 use SVN::Core '0.28';
 use SVN::Repos;
 use YAML ();
 use Template;
+use File::Spec::Unix;
 
 =head1 NAME
 
@@ -17,12 +18,18 @@ SVN::Web - Subversion repository web frontend
 > cd cgi-bin/svnweb
 > svnweb-install
 
-edit your config.yaml to set repository to browse, then point your
+Edit your config.yaml to set repository to browse, then point your
 browser to index.cgi/<repos>
 
 =head1 DESCRIPTION
 
+SVN::Web provides a web interface to subversion repositories. You can
+browse the tree, view history of a directory or a file, see what's
+changed in a specific revision, track changes with RSS, and also view
+diff.
 
+SVN::Web also tracks the branching feature (node copy) of subversion,
+so you can easily see the relationship between branches.
 
 =cut
 
@@ -31,7 +38,7 @@ my $config;
 
 my %REPOS;
 
-our @PLUGINS = qw/browse checkout log revision template/;
+our @PLUGINS = qw/branch browse checkout diff log revision RSS template/;
 
 sub load_config {
     my $file = shift;
@@ -54,7 +61,7 @@ sub get_repos {
 	 : $config->{repos}{$repos}) or die $!;
 }
 
-sub run {
+sub get_handler {
     my $cfg = shift;
     my $pkg = $config->{"$cfg->{action}_class"};
     unless ($pkg) {
@@ -64,16 +71,28 @@ sub run {
     }
     die "no such plugin $pkg" unless $pkg;
     eval "require $pkg && $pkg->can('run')" or die $@;
+    return $pkg->new (%$cfg, reposname => $cfg->{repos},
+		      repos => $REPOS{$cfg->{repos}});
+
+}
+
+sub run {
+    my $cfg = shift;
 
     my $pool = SVN::Pool->new_default;
 
     get_repos ($cfg->{repos});
 
-    my $obj = $pkg->new (%$cfg, repos => $REPOS{$cfg->{repos}});
+    @{$cfg->{navpaths}} = File::Spec::Unix->splitdir ($cfg->{path});
+    shift @{$cfg->{navpaths}};
+    # should use attribute or things alike
+    my $branch = get_handler ({%$cfg, action => 'branch'});
+    my $obj = get_handler ({%$cfg, branch => $branch});
     my $html = $obj->run;
+
     if (ref ($html)) {
 	print $cfg->{cgi}->header(-charset => $html->{charset} || 'UTF-8',
-			   -type => $html->{mimetype} || 'text/html');
+				  -type => $html->{mimetype} || 'text/html');
 	if ($html->{template}) {
 	    $template->process ($html->{template},
 				{ %$cfg,
@@ -98,8 +117,8 @@ sub run_cgi {
     my $cgi_class = (eval { require CGI::Fast; 1 } ? 'CGI::Fast' : 'CGI');
     $config = load_config ('config.yaml');
     $template = Template->new ({ INCLUDE_PATH => 'template/',
-				    PRE_PROCESS => 'header',
-				    POST_PROCESS => 'footer' });
+				 PRE_PROCESS => 'header',
+				 POST_PROCESS => 'footer' });
 
     while (my $cgi = $cgi_class->new) {
 	# /<repository>/<action>/<path>/<file>?others
@@ -118,5 +137,20 @@ sub run_cgi {
 sub handler {
 
 }
+
+=head1 AUTHORS
+
+Chia-liang Kao E<lt>clkao@clkao.orgE<gt>
+
+=head1 COPYRIGHT
+
+Copyright 2003 by Chia-liang Kao E<lt>clkao@clkao.orgE<gt>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut
 
 1;

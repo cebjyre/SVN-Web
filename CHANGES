@@ -1,0 +1,17 @@
+[Changes for 0.2 - Aug 26, 2003]
+
+* Add path navigation support.
+* Add file diff support.
+* Add RSS support for tracking changes.
+* Add mime-type support for checkout and browse.
+* Add branch info support in directory browsing.
+* Add branchpoint info in log mode.
+* Update document.
+
+[Changes for 0.11 - Aug 25, 2003]
+
+* Fix - Missing '/' in path in links.
+
+[Changes for 0.1 - Aug 25, 2003]
+
+Initial release.

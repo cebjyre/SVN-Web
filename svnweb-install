@@ -10,7 +10,7 @@ mkdir 'template';
 for (@SVN::Web::PLUGINS) {
     my $module = $_;
     s/^(\w)/\U$1/;
-    print $fh "${module}_class:".(' 'x(20-(length $_)))."SVN::Web::$_\n";
+    print $fh lc(${module}).'_class:'.(' 'x(20-(length $_)))."SVN::Web::$_\n";
     eval "require SVN::Web::${_}" or die $@;
     my $templates = eval "&SVN::Web::${_}::template" or next;
     for (keys %$templates) {
