@@ -2,6 +2,8 @@
 use strict;
 use SVN::Web;
 use Config;
+use File::Copy;
+use File::Basename;
 
 die "already have config.yaml" if -e 'config.yaml';
 
@@ -17,6 +19,11 @@ for (@SVN::Web::PLUGINS) {
 	open my $tfh, ">template/$_";
 	print $tfh $templates->{$_};
     }
+    my $path = $INC{'SVN/Web.pm'};
+    if ($path =~ s{.pm$}{/I18N}i) {
+	mkdir "po";
+	copy($_ => "po/".basename($_)) for glob("$path/*.po");
+    }
 }
 
 print $fh <<END;
@@ -29,6 +36,14 @@ print $fh <<END;
 # or a parent path contains repositories
 #
 #reposparent: '/path/to/repositories'
+#
+# if you set a parent you can block specific repositories
+# like this:
+#
+#block:
+#  - 'blocked1'
+#  - 'blocked2'
+
 END
 
 close $fh;

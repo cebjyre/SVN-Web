@@ -27,8 +27,11 @@ sub new {
     my $class = shift;
     my $self = $class->SUPER::new (@_);
     my $pool = SVN::Pool->new_default_sub;
-    my $file = "branch-$self->{reposname}.yaml";
+    my $temp = ($self->{tmpdir} || '.');
+    my $file = "$temp/branch-$self->{reposname}.yaml";
     $self->{BRANCHINFO} = YAML::LoadFile ($file) if -e $file;
+
+    # XXX: lock this
 
     $self->{repos}->get_logs ([], $self->{BRANCHINFO}{youngest}+1,
 			      $self->{repos}->fs->youngest_rev, 1, 0,

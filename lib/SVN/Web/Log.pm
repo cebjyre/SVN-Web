@@ -42,18 +42,18 @@ sub template {
 1;
 
 __DATA__
-history for path [% path %] <a href="[% script %]/[% repos %]/rss[% path %]">(track)</a>
+[%|l(path)%]history for path %1[%END%] <a href="[% script %]/[% repos %]/rss[% path %]">[%|l%](track)[%END%]</a>
 [% IF isdir %]
-<a href="[% script %]/[% repos %]/browse[% path %]">(browse)</a>
+<a href="[% script %]/[% repos %]/browse[% path %]">[%|l%](browse)[%END%]</a>
 [% END %]
 [% FOREACH revs %]
 <hr />
 <a name="rev[% rev %]"/>
-<a href="[% script %]/[% repos %]/revision/?rev=[% rev %]">revision [% rev %]</a>
+<a href="[% script %]/[% repos %]/revision/?rev=[% rev %]">[%|l(rev)%]revision %1[%END%]</a>
 [% IF isdir %]
-<a href="[% script %]/[% repos %]/browse[% path %]?rev=[% rev %]">(browse)</a>
+<a href="[% script %]/[% repos %]/browse[% path %]?rev=[% rev %]">[%|l%](browse)[%END%]</a>
 [% ELSE %]
-<a href="[% script %]/[% repos %]/checkout[% path %]?rev=[% rev %]">(checkout)</a>
+<a href="[% script %]/[% repos %]/checkout[% path %]?rev=[% rev %]">[%|l%](checkout)[%END%]</a>
 [% END %]
  - [% author %] - [% date %]<br/>
 
@@ -69,7 +69,7 @@ branchpoint for
 [% END %]
 [% UNLESS isdir || loop.count == loop.size%]
 [% prev = loop.count %]
-<a href="[% script %]/[% repos %]/diff[% path %]?rev1=[% revs.$prev.rev %]&rev2=[% rev %]">(Diff to previous)</a><br/>
+<a href="[% script %]/[% repos %]/diff[% path %]?rev1=[% revs.$prev.rev %]&rev2=[% rev %]">[%|l%](diff with previous)[%END%]</a><br/>
 [% END %]
 [% msg | html | html_line_break %]
 [% END %]

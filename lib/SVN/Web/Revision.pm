@@ -14,14 +14,15 @@ sub new {
 
 sub _log {
     my ($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
+    $pool->default;
     my $data = {rev => $rev, author => $author,
 		date => $date, msg => $msg};
     $data->{paths} = {map { $_ => {action => $paths->{$_}->action,
 				   copyfrom => $paths->{$_}->copyfrom_path,
 				   copyfromrev => $paths->{$_}->copyfrom_rev,
 				  }} keys %$paths};
-    my $root = $self->{repos}->fs->revision_root ($rev, $pool);
-    my $oldroot = $self->{repos}->fs->revision_root ($rev-1, $pool);
+    my $root = $self->{repos}->fs->revision_root ($rev);
+    my $oldroot = $self->{repos}->fs->revision_root ($rev-1);
     for (keys %{$data->{paths}}) {
 	$data->{paths}{$_}{isdir} = 1
 	    if $data->{paths}{$_}{action} eq 'D' ? $oldroot->is_dir ($_) : $root->is_dir ($_);
@@ -48,7 +49,7 @@ sub template {
 1;
 
 __DATA__
-revision [% rev %] - [% author || '(no author)' %] - [% date %]:<br />
+[%|l(rev)%]revision %1[%END%] - [% author || '(no author)' %] - [% date %]:<br />
 <p>
 [% msg | html | html_line_break %]
 </p>
@@ -57,9 +58,7 @@ revision [% rev %] - [% author || '(no author)' %] - [% date %]:<br />
 [% IF path.value.isdir %]
 <a href="[% script %]/[% repos %]/browse[% path.key %]/?rev=[% rev %]">[% path.key %]</a>
 [% IF path.value.copyfrom %]
-(from
-<a href="[% script %]/[% repos %]/browse[% path.value.copyfrom %]/?rev=[% path.value.copyfromrev %]">[% path.value.copyfrom %]:[% path.value.copyfromrev %]</a>
-)
+<a href="[% script %]/[% repos %]/browse[% path.value.copyfrom %]/?rev=[% path.value.copyfromrev %]">[%|l(path.value.copyfrom, path.value.copyfromrev)%](from %1:%2)[%END%]</a>
 [% END %]
 
 [% ELSE %]
@@ -67,12 +66,10 @@ revision [% rev %] - [% author || '(no author)' %] - [% date %]:<br />
 [% path.key %]
 [% ELSE %]
 <a href="[% script %]/[% repos %]/log[% path.key %]#rev[% rev %]">[% path.key %]</a>
-<a href="[% script %]/[% repos %]/checkout[% path.key %]?rev=[% rev %]">(checkout)</a>
+<a href="[% script %]/[% repos %]/checkout[% path.key %]?rev=[% rev %]">[%|l%](checkout)[%END%]</a>
 [% END %]
 [% IF path.value.copyfrom %]
-(from
-<a href="[% script %]/[% repos %]/log[% path.value.copyfrom %]#rev[% path.value.copyfromrev %]">[% path.value.copyfrom %]:[% path.value.copyfromrev %]</a>
-)
+<a href="[% script %]/[% repos %]/log[% path.value.copyfrom %]#rev[% path.value.copyfromrev %]">[%|l(path.value.copyfrom, path.value.copyfromrev)%](from %1:%2)[%END%]</a>
 [% END %]
 [% END %]
 

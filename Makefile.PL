@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use ExtUtils::MakeMaker;
 
-my $required_svn = '0.29.0';
+my $required_svn = '0.36.0';
 
 WriteMakefile(
     AUTHOR              => 'Chia-liang Kao (clkao@clkao.org)',
@@ -16,6 +16,7 @@ WriteMakefile(
         'YAML'        => '0',
         'XML::RSS'    => '0',
         'Text::Diff'  => '0',
+	'Locale::Maketext::Simple' => 0,
     },
     dist                => {
         COMPRESS        => 'gzip -9',

@@ -32,11 +32,13 @@ sub run {
 			   isdir => ($_->kind == $SVN::Node::dir),
 		       }} values %{$root->dir_entries ($self->{path})}];
 
+
     for (@$entries) {
+	my $path = "$self->{path}$_->{name}";
 	$_->{rev} = ($fs->revision_root ($rev)->node_history
-		     ($self->{path}.'/'.$_->{name})->prev(0)->location)[1];
+		     ($path)->prev(0)->location)[1];
 	$_->{size} = $_->{isdir} ? '' :
-	    $root->file_length ($self->{path}.'/'.$_->{name});
+	    $root->file_length ($path);
 	$_->{type} = $root->node_prop ($self->{path}.$_->{name},
 				       'svn:mime-type') unless $_->{isdir};
 	$_->{type} =~ s|/\w+|| if $_->{type};
@@ -60,25 +62,25 @@ sub template {
 
 1;
 __DATA__
-browsing [% path %] (of revision [% revision %])
-<a href="[% script %]/[% repos %]/log[% path %]">(history of this directory)</a>
+[%|l(path, revision)%]browsing %1 (of revision %2)[%END%]
+<a href="[% script %]/[% repos %]/log[% path %]">[%|l%](history of this directory)[%END%]</a>
 [% IF branchto %]
 <hr>
-Branch to:
+[%|l%]Branch to:[%END%]
 [% FOR branchto %]
 <a href="[% script %]/[% repos %]/browse[% dst %]">[% dst %]</a>:
-<a href="[% script %]/[% repos %]/revision/?rev=[% dstrev %]">[% dstrev %]</a> (from revision [% srcrev %])
+<a href="[% script %]/[% repos %]/revision/?rev=[% dstrev %]">[% dstrev %]</a> [%|l(srcrev)%](from revision %1)[%END%]
 [% END %]
 [% END %]
 [% IF branchfrom %]
 <hr>
-Branch from:
+[%|l%]Branch from:[%END%]
 [% FOR branchfrom %]
-<a href="[% script %]/[% repos %]/browse[% src %]">[% src %]</a>:[% srcrev %] (to <a href="[% script %]/[% repos %]/revision/?rev=[% dstrev %]">revision [% dstrev %]</a>)
+<a href="[% script %]/[% repos %]/browse[% src %]">[% src %]</a>:[% srcrev %] <a href="[% script %]/[% repos %]/revision/?rev=[% dstrev %]">[%|l(dstrev)%](to revision %1)[%END%]</a>
 [% END %]
 [% END %]
 <table border=0 width="90%" class="entries">
-<tr><td>name</td><td>revision</td><td>age</td><td>size</td></tr>
+<tr><td>[%|l%]name[%END%]</td><td>[%|l%]revision[%END%]</td><td>[%|l%]age[%END%]</td><td>[%|l%]size[%END%]</td></tr>
 [% FOREACH entries %]
 <tr>
 <td class="name">
