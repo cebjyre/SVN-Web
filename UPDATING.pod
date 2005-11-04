@@ -1,0 +1,22 @@
+=head1 NAME
+
+UPDATING
+
+=head1 SYNOPSIS
+
+Notes on updating from previous versions of SVN::Web
+
+=head1 DESCRIPTION
+
+=head2 Anything < 0.40 to 0.40
+
+The 0.40 release includes sweeping changes to the templates, as well
+as additional functionality and configuration directives.  See F<CHANGES>
+for details.
+
+The simplest approach is to backup your existing F<config.yaml> and then
+re-run C<svnweb-install>.  This will generate a new F<config.yaml> and
+copy over the new templates and other files.
+
+It should be easy to migrate your old configuration directives to the new
+configuration file.

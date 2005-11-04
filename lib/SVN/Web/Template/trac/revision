@@ -1,0 +1,100 @@
+[% class_with_action = { 'A' => 'add',
+                         'M' => 'mod', 
+                         'D' => 'rem',
+                         } %]
+
+<div id="ctxtnav" class="nav">
+  <h2>[%|l%](revision navigation)[%END%]</h2>
+
+  <ul>
+    [% IF rev > 1 %]
+      <li class="first[% rev == youngest_rev ? ' last': '' %]"><a href="[% script %]/[% repos %]/revision?rev=[% rev - 1 %]">[%|l%](previous revision)[%END%]</a></li>
+    [% END %]
+    [% IF rev != youngest_rev %]
+      <li class="first"><a href="[% script %]/[% repos %]/revision?rev=[% rev + 1 %]">[%|l%](next revision)[%END%]</a></li>
+      <li class="first last"><a href="[% script %]/[% repos %]/revision?rev=[% youngest_rev %]">[%|l%](youngest revision)[%END%]</a></li>
+    [% END %]
+  </ul>
+</div>
+
+<h1>[%|l%](revision)[%END%] [% rev %]</h1>
+
+<dl id="overview">
+  <dt class="time">[%|l%](date)[%END%]:</dt>
+  <dd class="time">[% date.replace('T', ' ').replace('\..+', '').replace('-', '/') %]</dd>
+
+  <dt class="author">[%|l%](author)[%END%]:</dt>
+  <dd class="author">[% author || '(no author)' %]</dd>
+
+  <dt class="message">[%|l%](revision log)[%END%]:</dt>
+  <dd class="message"><p>[% msg | log_msg %]</p></dd>
+
+  <dt class="files">[%|l%](files)[%END%]:</dt>
+  <dd class="files">
+    <ul>
+    [% FOREACH path = paths %]
+    <li>
+      <div class="[% class_with_action.${path.value.action} %]"></div>
+      [% IF path.value.isdir %]
+        [% IF path.value.action == 'D' %]
+          [% path.key %]
+        [% ELSE %]
+          <a href="[% script %]/[% repos %]/browse[% path.key %]/?rev=[% rev %]">[% path.key %]</a>
+          [% IF path.value.copyfrom %]([%|l%](copied from)[%END%]
+          <a href="[% script %]/[% repos %]/browse[% path.value.copyfrom %]/?rev=[% path.value.copyfromrev %]">[% path.value.copyfrom %]:[% path.value.copyfromrev %]</a>)
+          [% END %]
+        [% END %]
+      [% ELSE %]
+        [% IF path.value.action == 'D' %]
+          [% path.key %]
+        [% ELSE %]
+          <a href="[% script %]/[% repos %]/view[% path.key %]?rev=[% rev %]">[% path.key %]</a>
+          [% IF path.value.action == 'M' %]
+            (<a href="#diff_[% path.key.replace('/', '_') | uri | html %]">[%|l%](diff)[%END%]</a>)
+          [% END %]
+          [% IF path.value.action == 'A' %]
+            [% IF path.value.diff %]
+              (<a href="#diff_[% path.key.replace('/', '_') | uri | html %]">[%|l%](diff)[%END%]</a>)
+            [% END %]
+          [% END %]
+          (<a href="[% script %]/[% repos %]/checkout[% path.key %]?rev=[% rev %]">[%|l%](checkout)[%END%]</a>)
+        [% END %]
+        [% IF path.value.copyfrom %]([%|l%](copied from)[%END%]
+          <a href="[% script %]/[% repos %]/view[% path.value.copyfrom %]?rev=[% path.value.copyfromrev %]">[% path.value.copyfrom %]:[% path.value.copyfromrev %]</a>)
+        [% END %]
+      [% END %]
+    </li>
+    [% END %]
+    </ul>
+  </dd>
+</dl>
+
+<div class="diff">
+  <div id="legend">
+    <h3>[%|l%](legend)[%END%]:</h3>
+    <dl>
+      <dt class="add">&nbsp;</dt><dd>[%|l%](added)[%END%]</dd>
+      <dt class="rem">&nbsp;</dt><dd>[%|l%](removed)[%END%]</dd>
+      <dt class="mod">&nbsp;</dt><dd>[%|l%](modified)[%END%]</dd>
+    </dl>
+  </div>
+
+  [% FOREACH path = paths;
+       NEXT IF path.value.isdir;
+       NEXT UNLESS path.value.diff;
+       include_diff = 1;
+     END %]
+
+  [% IF include_diff %]
+    <ul>
+    [% FOREACH path = paths %]
+      [% NEXT IF path.value.isdir %]
+      [% NEXT UNLESS path.value.diff %]
+      <li id="diff_[% path.key.replace('/', '_') | uri | html %]">
+        <h2>[% path.key %]</h2>
+          [% path.value.diff %]
+      </li>
+    [% END %]
+    </ul>
+  [% END %]
+</div>

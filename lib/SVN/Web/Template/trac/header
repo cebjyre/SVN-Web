@@ -1,0 +1,35 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+[% IF rev == youngest_rev %]
+[% revstr = '' %]
+[% ELSE %]
+[% revstr = "?rev=$rev" %]
+[% END %]
+
+<html>
+  <head>
+    <title>[% IF action == 'list' %][%|l%](repository list)[%END%][% ELSE %][% action %]: /[% repos %][% path %][% END %] ([% IF rev %]Rev: [% rev == youngest_rev ? 'HEAD' : rev %], [% END %][%|l%](via)[%END%] SVN::Web)</title>
+    [% IF style %]
+      <link rel="stylesheet" href="[% style %]" type="text/css" />
+    [% ELSE %]
+      <link rel="stylesheet" type="text/css" href="/~nik/cgi-bin/svnweb/css/trac/svnweb.css" />
+    [% END %]
+  </head>
+  <body>
+    [% UNLESS nonav %]
+      <div id="navpath">
+	<h1><a class="first" href="[% script %]">[%|l%](repository list)[%END%]</a> /  [% url = [script,repos,''] %]  [% url = url.join('/') %]  [% urlpath = ['',''] %]<a href="[% url %]">[% repos %]</a>
+            [% FOREACH p = navpaths %]
+              [% CALL urlpath.splice(-1, 0, p) %]
+              [% IF loop.count == loop.size %]
+                [% IF p %]
+                  <span class="sep">/</span>   [% p %]
+                [% END %]
+              [% ELSE %]
+                <span class="sep">/</span>    <a href="[% url %]browse[% urlpath.join('/') %][% revstr %]">[% p %]</a>
+              [% END %]
+          [% END %] @ [% rev == youngest_rev ? 'HEAD' : "r$rev" %]</h1>
+      </div>
+    [% END %]
+    <div id="content">

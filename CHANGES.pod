@@ -1,0 +1,212 @@
+=head1 NAME
+
+CHANGES
+
+=head1 SYNOPSIS
+
+Changes between SVN::Web versions.
+
+=head1 DESCRIPTION
+
+=head2 0.40, released Nov 4, 2005
+
+=over
+
+=item
+
+Maintainership handed from Chia-ling Kao to Nik Clayton.
+
+=item
+
+Overhauled the templates, so the out-of-the-box experience is much
+nicer.
+
+=item
+
+Add a C<view> action that shows the contents of a file, along with
+the most recent log message.
+
+=item
+
+More customisation options, making it easier to add or remove actions 
+from the list of things that SVN::Web is allowed to do.
+
+=item
+
+Added huge swathes of information to the documentation.  It should now 
+be much easier for anyone else to contribute code and/or templates to 
+SVN::Web.
+
+=item
+
+A fix for rt#12431.  URLs without trailing slashes are fixed.
+
+=item
+
+A mechanism to 'stack' Template Toolkit filters. You can run easily run 
+log messages through an arbitrary number of filters, without causing 
+problems if one or more of the filters is not installed.
+
+=item
+
+Inline display of some content from the repository where appropriate 
+(e.g., viewing an image works properly).
+
+=item
+
+Fixed a bug that meant the results from the automated tests weren't 
+valid. Fixed the bugs that this uncovered.
+
+=item
+
+Added tests to ensure that the generated HTML is valid.
+
+=back
+
+=head2 0.39
+
+Never released.
+
+=head2 0.38, released Nov 21, 2004
+
+=over
+
+=item
+
+Fix pool mess causing apache to segfault under mod_perl.
+
+=item
+
+Add limit option to log.
+
+=back
+
+=head2 0.37, released Jun 3, 2004
+
+=over
+
+=item
+
+Templates are now css friendly. [Autrijus]
+
+=item
+
+heavy branch detection no longer default.
+
+=back
+
+=head2 0.36, released Nov 24, 2003]
+
+=over
+
+=item
+
+Make mod_perl 1 work.
+
+=item
+
+I18n support from Autrijus.
+
+=item
+
+Repository list action from DROLSKY
+
+=item
+
+Fix poor pool usage for branch init.
+
+=back
+
+=head2 0.35, released Nov 19, 2003
+
+=over
+
+=item
+
+Fix RSS links to revisions under mod_perl.
+
+=item
+
+Misc fixes and API catch-up.
+
+=back
+
+=head2 0.30, released Aug 27, 2003
+
+=over
+
+=item
+
+Fix - Escape log message properly.
+
+=item
+
+Add log message when describing a revision.
+
+=item
+
+Sort the entries in browsing.
+
+=item
+
+Adjust pool usage for opened repos so it's easier for modperl to work
+
+=item 
+
+Add mod_perl support.
+
+=back
+
+=head2 0.2, released Aug 26, 2003
+
+=over
+
+=item
+
+Add path navigation support.
+
+=item
+
+Add file diff support.
+
+=item
+
+Add RSS support for tracking changes.
+
+=item
+
+Add mime-type support for checkout and browse.
+
+=item
+
+Add branch info support in directory browsing.
+
+=item
+
+Add branchpoint info in log mode.
+
+=item
+
+Update document.
+
+=back
+
+=head2 0.11, released Aug 25, 2003
+
+=over
+
+=item
+
+Fix - Missing '/' in path in links.
+
+=back
+
+=head2 0.1, released Aug 25, 2003
+
+=over
+
+=item
+
+Initial release.
+
+=back

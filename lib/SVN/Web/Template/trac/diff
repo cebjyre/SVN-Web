@@ -1,0 +1,7 @@
+<div class="diff">
+  <ul>
+    <li><h2>[% path %]</h2>
+
+      [% body %]</li>
+  </ul>
+</div>

@@ -9,12 +9,22 @@ abstract	('Subversion repository web frontend');
 install_script  ('bin/svnweb-install');
 license		('perl');
 version_from	('lib/SVN/Web.pm');
+clean_files	(qw't/repos*');
 requires(
         'Template'    => '0',
         'YAML'        => '0',
         'XML::RSS'    => '0',
         'Text::Diff'  => '0',
+	'Text::Diff::HTML' => '0',
+	'Template::Plugin::Number::Format' => '0',
+	'Locale::Maketext::Lexicon' => 0,
 	'Locale::Maketext::Simple' => 0);
+
+recommends(
+	'Template::Plugin::Clickable' => 0,
+	'Template::Plugin::Clickable::Email' => 0,
+	'Template::Plugin::Subst' => 0,
+	);
 
 include('ExtUtils::AutoInstall');
 auto_install();

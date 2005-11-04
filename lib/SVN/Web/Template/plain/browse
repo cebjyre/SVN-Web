@@ -1,7 +1,6 @@
-<div class="blogbody">
 <div class="title">
 [%|l(path, revision)%]browsing %1 (of revision %2)[%END%]
-<a href="[% script %]/[% repos %]/log[% path %]">[%|l%](history of this directory)[%END%]</a>
+<a href="[% script %]/[% repos %]/log[% path %]?rev=[% rev %]">[%|l%](history of this directory)[%END%]</a>
 [% IF branchto %]
 <hr>
 [%|l%]Branch to:[%END%]
@@ -18,7 +17,10 @@
 [% END %]
 [% END %]
 </div>
-<table border=0 width="90%" class="entries">
+[% IF entries.size == 0 %]
+<p>No entries in this directory.</p>
+[% ELSE %]
+<table border=0 width="90%" class="entries" summary="File and directory listing">
 <thead>
 <tr><th>[%|l%]name[%END%]</th><th>[%|l%]revision[%END%]</th><th>[%|l%]age[%END%]</th><th>[%|l%]size[%END%]</th></tr>
 </thead>
@@ -27,19 +29,18 @@
 <tr>
 <td class="name">
 [% IF isdir %]
-<img border="0" src="/icons/dir.gif" />
-<a href="[% script %]/[% repos %]/browse[% path %][% name %]/">[% name %]</a>
+<img alt="[dir]" border="0" src="/icons/dir.gif" />
+<a href="[% script %]/[% repos %]/browse[% path %][% name %]/?rev=[% rev %]">[% name %]</a>
 [% ELSE %]
-<a href="[% script %]/[% repos %]/checkout[% path %][% name %]?rev=[% rev %]"><img border="0" src="/icons/[% type || 'text' %].gif" /></a>
-<a href="[% script %]/[% repos %]/log[% path %][% name %]">[% name %]</a>
+<a href="[% script %]/[% repos %]/checkout[% path %][% name %]?rev=[% rev %]"><img alt="[file]" border="0" src="/icons/[% type || 'text' %].gif" /></a>
+<a href="[% script %]/[% repos %]/view[% path %][% name %]?rev=[% rev %]">[% name %]</a>
 [% END %]</td>
-<td class="revision">[% rev %]</td>
-<td class="age"></td>
+<td class="revision"><a href="[% script %]/[% repos %]/revision?rev=[% rev %]">[% rev %]</a>
+</td>
+<td class="age">Unimpl</td>
 <td class="size">[% size %]</td>
 </tr>
 [% END %]
 </tbody>
-
 </table>
-
-</div>
+[% END %]

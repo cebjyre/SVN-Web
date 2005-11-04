@@ -9,7 +9,7 @@ BEGIN {
     plan skip_all => 'MANIFEST not exists' unless -e $manifest;
     open FH, $manifest;
 
-    my @pm = map { s|^lib/||; chomp; $_ } grep { m|^lib/.*pm$| } <FH>;
+    my @pm = map { s|^lib/||; chomp; $_ } grep { m|^lib/.*pm$| && !m|Test| } <FH>;
 
     plan tests => scalar @pm;
     for (@pm) {

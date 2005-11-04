@@ -15,7 +15,9 @@ sub run {
 
     my @repos = SVN::Web::repos_list();
     return { template => 'list',
-	     data => {nonav => 1,
+	     data => {
+		      action => 'list',
+		      nonav => 1,
                       repos => \@repos,
                       reposcount => scalar @repos}};
 }

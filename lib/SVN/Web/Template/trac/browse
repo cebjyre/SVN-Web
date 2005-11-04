@@ -1,0 +1,44 @@
+[% USE Number.Format %]
+[% USE cgi = CGI %]
+
+<div id="jumprev">
+  <form action="[% cgi.self_url %]" method="get">
+   <div>
+    <label for="rev">[%|l%](goto revision)[%END%]:</label>
+    <input type="text" id="rev" name="rev" value="[% rev %]" size="4" />
+   </div>
+  </form>
+</div>
+
+<div class="title"><a href="[% script %]/[% repos %]/log[% path %][% revstr %]">[%|l%](revision log)[%END%]</a></div>
+
+[% IF entries.size == 0 %]
+<p>[%|l%](no directory entries)[%END%]</p>
+[% ELSE %]
+<table class="listing" id="dirlist" summary="[%|l%](browse listing)[%END%]">
+  <thead>
+    <tr>
+      <th class="name">[%|l%](name)[%END%]</th>
+      <th class="rev">[%|l%](revision)[%END%]</th>
+      <th class="size">[%|l%](size)[%END%]</th>
+      <th class="change">[%|l%](last change)[%END%]</th>
+    </tr>
+  </thead>
+  <tbody>
+  [% FOREACH entries %]
+    <tr class="[% loop.count % 2 ? "even" : "odd" %]">
+      <td class="name">
+      [% IF isdir %]
+          <a class="dir" href="[% script %]/[% repos %]/browse[% path %][% name %]/[% revstr %]">[% name %]/</a>
+      [% ELSE %]
+        <a class="file" href="[% script %]/[% repos %]/view[% path %][% name %][% revstr %]">[% name %]</a>
+      [% END %]
+      </td>
+      <td class="rev"><a href="[% script %]/[% repos %]/revision?rev=[% rev %]">[% rev %]</a></td>
+      <td class="size">[% IF ! isdir; size | format_bytes; END %]</td>
+      <td class="change"><span class="author">[% author %]:</span> <span class="change">[% msg | truncate(100) | html %]</span></td>
+    </tr>
+  [% END %]
+  </tbody>
+</table>
+[% END %]

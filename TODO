@@ -1,3 +1,5 @@
+* Write a 'help' action with associated documentation.
+
 * cleanup the template structure with hooks
 
 * diff directory and branch support.
@@ -21,3 +23,16 @@
 * sort branch info in browse.
 
 * supply last-modified in header and check it.
+
+* Add an 'annotation' action
+
+* Fix bugs reported through RT
+
+* If there's only one repo then going to the root should (?) automatically
+  take you to it.
+
+* Possibly a difference in the localisation between "Revision" as a
+  title, column heading, or whatever, and "Revision \d+" referring to
+  a specific revision number.
+
+* Templates and I18N should be more tightly coupled.

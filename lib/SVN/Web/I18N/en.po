@@ -4,76 +4,136 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: template/log:28
-msgid "(diff with previous)"
+#: ../Template/trac/log:40 ../Template/trac/log:44
+#. (pk.value.copyfrom, pk.value.copyfromrev)
+msgid "%1:%2"
 msgstr ""
 
-#: template/log:10 template/log:3
-msgid "(browse)"
-msgstr ""
+#: ../Template/trac/revision:76
+msgid "(added)"
+msgstr "Added"
 
-#: template/log:12 template/revision:18
+#: ../Template/trac/log:15 ../Template/trac/revision:26
+msgid "(author)"
+msgstr "Author"
+
+#: ../Template/trac/browse:18
+msgid "(browse listing)"
+msgstr "File and directory listing"
+
+#: ../Template/trac/log:6
+msgid "(changes)"
+msgstr "changes"
+
+#: ../Template/trac/log:62 ../Template/trac/revision:60 ../Template/trac/view:1
 msgid "(checkout)"
+msgstr "Checkout"
+
+#: ../Template/trac/list:3
+msgid "(choose repos)"
+msgstr "Please select a repository to browse"
+
+#: ../Template/trac/revision:43 ../Template/trac/revision:62
+msgid "(copied from)"
 msgstr ""
 
-#: template/revision:10 template/revision:21
-#. (path.value.copyfrom, path.value.copyfromrev)
+#: ../Template/trac/log:12 ../Template/trac/revision:23
+msgid "(date)"
+msgstr "Date"
+
+#: ../Template/trac/log:16 ../Template/trac/revision:53 ../Template/trac/revision:57
+msgid "(diff)"
+msgstr "Diff"
+
+#: ../Template/trac/log:13
+msgid "(file)"
+msgstr "File"
+
+#: ../Template/trac/revision:32
+msgid "(files)"
+msgstr "Files"
+
+#: ../Template/trac/log:55 ../Template/trac/log:65
+#. (pk.value.copyfrom, pk.value.copyfromrev)
 msgid "(from %1:%2)"
 msgstr ""
 
-#: template/browse:8
-#. (srcrev)
-msgid "(from revision %1)"
-msgstr ""
+#: ../Template/trac/browse:7
+msgid "(goto revision)"
+msgstr "View Revision"
 
-#: template/browse:15
-#. (dstrev)
-msgid "(to revision %1)"
-msgstr ""
+#: ../Template/trac/browse:24
+msgid "(last change)"
+msgstr "Last Change"
 
-#: template/log:1
-msgid "(track)"
-msgstr ""
+#: ../Template/trac/revision:74
+msgid "(legend)"
+msgstr "Legend"
 
-#: template/browse:13
-msgid "Branch from:"
-msgstr ""
+#: ../Template/trac/revision:78
+msgid "(modified)"
+msgstr "Modified"
 
-#: template/browse:5
-msgid "Branch to:"
-msgstr ""
+#: ../Template/trac/browse:21
+msgid "(name)"
+msgstr "Name"
 
-#: template/footer:1
-msgid "Powered by SVN::Web"
-msgstr ""
+#: ../Template/trac/revision:14
+msgid "(next revision)"
+msgstr "Next Revision"
 
-#: template/browse:19
-msgid "age"
-msgstr ""
+#: ../Template/trac/browse:16
+msgid "(no directory entries)"
+msgstr "There are no directory entries to show"
 
-#: template/browse:1
-#. (path, revision)
-msgid "browsing %1 (of revision %2)"
-msgstr ""
+#: ../Template/trac/list:13
+msgid "(no repos)"
+msgstr "No repositories are available for browsing."
 
-#: template/log:1
-#. (path)
-msgid "history for path %1"
-msgstr ""
+#: ../Template/trac/footer:4
+msgid "(powered by)"
+msgstr "Powered by"
 
-#: template/browse:19
-msgid "name"
-msgstr ""
+#: ../Template/trac/revision:11
+msgid "(previous revision)"
+msgstr "Previous Revision"
 
-#: template/browse:19
-msgid "revision"
-msgstr ""
+#: ../Template/trac/revision:77
+msgid "(removed)"
+msgstr "Removed"
 
-#: template/log:8 template/revision:1
-#. (rev)
-msgid "revision %1"
-msgstr ""
+#: ../Template/trac/header:12 ../Template/trac/header:22
+msgid "(repository list)"
+msgstr "Repository List"
 
-#: template/browse:19
-msgid "size"
+#: ../Template/trac/browse:13 ../Template/trac/log:17 ../Template/trac/log:9 ../Template/trac/revision:29 ../Template/trac/view:1 ../Template/trac/view:3
+msgid "(revision log)"
+msgstr "Revision Log"
+
+#: ../Template/trac/revision:7
+msgid "(revision navigation)"
+msgstr "Revision Navigation"
+
+#: ../Template/trac/browse:22 ../Template/trac/log:14 ../Template/trac/revision:20 ../Template/trac/view:6
+msgid "(revision)"
+msgstr "Revision"
+
+#: ../Template/trac/log:6
+msgid "(show last)"
+msgstr "Show last"
+
+#: ../Template/trac/browse:23
+msgid "(size)"
+msgstr "Size"
+
+#: ../Template/trac/header:12
+msgid "(via)"
+msgstr "via"
+
+#: ../Template/trac/revision:15
+msgid "(youngest revision)"
+msgstr "Most Recent"
+
+#: ../Template/trac/log:3
+msgid "RSS"
 msgstr ""
