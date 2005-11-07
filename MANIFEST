@@ -14,6 +14,7 @@ inc/Module/Install/Scripts.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/SVN/Web.pm
+lib/SVN/Web/action.pm
 lib/SVN/Web/Branch.pm
 lib/SVN/Web/Branch/YAML.pm
 lib/SVN/Web/Browse.pm
@@ -28,6 +29,18 @@ lib/SVN/Web/Revision.pm
 lib/SVN/Web/RSS.pm
 lib/SVN/Web/Style/common.css
 lib/SVN/Web/Style/styles-hlb.css
+lib/SVN/Web/Style/trac/browser.css
+lib/SVN/Web/Style/trac/changeset.css
+lib/SVN/Web/Style/trac/code.css
+lib/SVN/Web/Style/trac/diff.css
+lib/SVN/Web/Style/trac/file.png
+lib/SVN/Web/Style/trac/filedeny.png
+lib/SVN/Web/Style/trac/folder.png
+lib/SVN/Web/Style/trac/folderdeny.png
+lib/SVN/Web/Style/trac/parent.png
+lib/SVN/Web/Style/trac/svnweb.css
+lib/SVN/Web/Style/trac/text-diff-html.css
+lib/SVN/Web/Style/trac/trac.css
 lib/SVN/Web/Template/plain/browse
 lib/SVN/Web/Template/plain/diff
 lib/SVN/Web/Template/plain/footer
@@ -35,6 +48,7 @@ lib/SVN/Web/Template/plain/header
 lib/SVN/Web/Template/plain/list
 lib/SVN/Web/Template/plain/log
 lib/SVN/Web/Template/plain/revision
+lib/SVN/Web/Template/plain/view
 lib/SVN/Web/Template/trac/browse
 lib/SVN/Web/Template/trac/diff
 lib/SVN/Web/Template/trac/footer
@@ -42,6 +56,7 @@ lib/SVN/Web/Template/trac/header
 lib/SVN/Web/Template/trac/list
 lib/SVN/Web/Template/trac/log
 lib/SVN/Web/Template/trac/revision
+lib/SVN/Web/Template/trac/view
 lib/SVN/Web/Test.pm
 lib/SVN/Web/View.pm
 Makefile.PL

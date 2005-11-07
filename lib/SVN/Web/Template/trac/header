@@ -13,7 +13,7 @@
     [% IF style %]
       <link rel="stylesheet" href="[% style %]" type="text/css" />
     [% ELSE %]
-      <link rel="stylesheet" type="text/css" href="/~nik/cgi-bin/svnweb/css/trac/svnweb.css" />
+      <link rel="stylesheet" type="text/css" href="[% base_uri %]/css/trac/svnweb.css" />
     [% END %]
   </head>
   <body>

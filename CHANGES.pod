@@ -8,6 +8,22 @@ Changes between SVN::Web versions.
 
 =head1 DESCRIPTION
 
+=head2 0.41, released Nov 4, 2005
+
+=over
+
+=item
+
+Introduce a [% base_uri %] variable so templates can refer to files
+relative to the directory that C<svnweb-install> was run in.  Fix a
+hardcoded reference to my home directory in a template.
+
+=item
+
+Update some of the packaging files, which were out of date.
+
+=back
+
 =head2 0.40, released Nov 4, 2005
 
 =over

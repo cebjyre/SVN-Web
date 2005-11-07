@@ -1,0 +1,19 @@
+<p><a href="[% script %]/[% repos %]/log[% path %][% revstr %]">[%|l%](revision log)[%END%]</a> | <a href="[% script %]/[% repos %]/checkout[% path %][% revstr %]">[%|l%](checkout)[%END%]</a></p>
+
+<table id="info" summary="[%|l%](revision log)[%END%]">
+  <tr>
+    <th scope="row">
+[%|l%](revision)[%END%] <a href="[% script %]/[% repos %]/revision?rev=[% rev %]">[% rev %]</a> (by [% author || '(no author)' %], [% date.replace('T', ' ').replace('\..+', '').replace('-', '/') %])</th>
+    <td class="message">[% msg | log_msg %]</td>
+  </tr>
+</table>
+
+<div id="preview">
+  [% IF mimetype.match('^text/') %]
+    <pre class="code-block">[% file | html %]</pre>
+  [% ELSIF mimetype.match('^image/') %]
+    <img src="[% script %]/[% repos %]/checkout[% path %]" />
+  [% ELSE %]
+<p>This file can not be displayed in the browser.  You can <a href="[% script %]/[% repos %]/checkout[% path %]">download it</a>.</p>
+  [% END %]
+</div>

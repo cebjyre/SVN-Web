@@ -1,7 +1,7 @@
 name: SVN-Web
-version: 0.40
+version: 0.41
 abstract: Subversion repository web frontend
-author: Chia-liang Kao <clkao@clkao.org>
+author: Nik Clayton <nik@FreeBSD.org>
 license: perl
 distribution_type: module
 requires:
@@ -13,6 +13,7 @@ requires:
   Template::Plugin::Number::Format: 0
   Locale::Maketext::Lexicon: 0
   Locale::Maketext::Simple: 0
+  URI: 0
 recommends:
   Template::Plugin::Clickable: 0
   Template::Plugin::Clickable::Email: 0

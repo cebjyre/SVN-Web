@@ -4,7 +4,7 @@ my $required_svn = '1.0.4';
 use inc::Module::Install;
 
 name		('SVN-Web');
-author		('Chia-liang Kao <clkao@clkao.org>');
+author		('Nik Clayton <nik@FreeBSD.org>');
 abstract	('Subversion repository web frontend');
 install_script  ('bin/svnweb-install');
 license		('perl');
@@ -18,7 +18,8 @@ requires(
 	'Text::Diff::HTML' => '0',
 	'Template::Plugin::Number::Format' => '0',
 	'Locale::Maketext::Lexicon' => 0,
-	'Locale::Maketext::Simple' => 0);
+	'Locale::Maketext::Simple' => 0,
+	'URI' => 0);
 
 recommends(
 	'Template::Plugin::Clickable' => 0,

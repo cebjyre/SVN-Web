@@ -1,10 +1,11 @@
 package SVN::Web;
 use strict;
-our $VERSION = '0.40';
+our $VERSION = '0.41';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
 use Template;
+use URI;
 use File::Spec::Unix;
 eval 'use FindBin';
 {
@@ -542,6 +543,7 @@ sub run_cgi {
     $config->{diff_context} ||= 3;
 
     my $cgi_class = $config->{cgi_class} || (eval { require CGI::Fast; 1 } ? 'CGI::Fast' : 'CGI');
+
     while (my $cgi = $cgi_class->new) {
 	# /<repository>/<action>/<path>/<file>?others
 	my (undef, $repos, $action, $path) = split ('/', $cgi->path_info, 4);
@@ -551,10 +553,14 @@ sub run_cgi {
 	die "action '$action' not supported" 
 	  unless scalar grep(lc($_) eq lc($action), @{$config->{actions}});
 
+	my $base_uri = URI->new($cgi->url())->as_string();
+	$base_uri =~ s{/index.cgi}{};
+
 	run ({ repos => $repos,
 	       action => $action,
 	       path => '/'.$path,
-	       script =>$ENV{SCRIPT_NAME},
+	       script => $ENV{SCRIPT_NAME},
+	       base_uri => $base_uri,
                output_sub => \&cgi_output,
 	       style => $config->{style},
 	       cgi => $cgi});

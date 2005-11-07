@@ -8,6 +8,12 @@ Notes on updating from previous versions of SVN::Web
 
 =head1 DESCRIPTION
 
+=head2 0.40 to 0.41
+
+After installing the new module you should copy
+F<lib/Templates/trac/header> to F<< <dir>/template/trac/header >>, where
+F<< <dir> >> is the directory in which you ran C<svnweb-install>.
+
 =head2 Anything < 0.40 to 0.40
 
 The 0.40 release includes sweeping changes to the templates, as well
