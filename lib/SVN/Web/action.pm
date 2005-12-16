@@ -17,15 +17,18 @@ and return that information ready for the user's browser, optionally
 via formatting by a Template::Toolkit template.
 
 Action names are listed in the SVN::Web configuration file,
-F<config.yaml>, in the C<actions:> clause.  They are then mapped to
-the underlying classes with a C<< <action>_class >> clause.  E.g.,
+F<config.yaml>, in the C<actions:> clause.  Each entry specifies the
+class that implements the action, and any options that are set globally
+for that action.
 
   actions:
     ...
-    new_action
+    new_action:
+      class: Class::That::Implements::Action
+      opts:
+        option1: value1
+        option2: value2
     ...
-
-  new_action_class: My::New::Action
 
 Each action is a class that must implement at least two methods,
 C<new()> and C<run()>.
@@ -55,6 +58,15 @@ The method is passed a single parameter, the standard C<$self> hash
 ref.  This contains numerous useful keys.
 
 =over 4
+
+=item $self->{opts}
+
+The options for this action from F<config.yaml>.  Using the example from the
+L<OVERVIEW>, this would lead to:
+
+  $self->{opts} = { 'option1' => 'value1',
+                    'option2' => 'value2',
+                  };
 
 =item $self->{cgi}
 
@@ -182,6 +194,14 @@ If the action just wants to return HTML in UTF-8, it can return a single
 scalar that contains the HTML to be sent to the browser.
 
   return "<p>hello, world</p>";
+
+=head1 ERRORS AND EXCEPTIONS
+
+If your action needs to fail for some reason -- perhaps the parameters
+passed to it are incorrect, or the user lacks the necessary permissions,
+then throw an exception.
+
+Exceptions, along with examples, are described in L<SVN::Web::X>.
 
 =cut
 

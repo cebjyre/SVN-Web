@@ -12,7 +12,7 @@
  overflow: hidden;
  width: .8em; height: .8em;
 }
-#overview .message { padding: 1em 0 1px }
+#overview .message { padding: 1em 0 }
 #overview dd.message p, #overview dd.message ul, #overview dd.message ol {
  margin-bottom: 1em;
  margin-top: 0;

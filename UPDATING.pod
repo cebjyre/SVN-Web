@@ -8,6 +8,64 @@ Notes on updating from previous versions of SVN::Web
 
 =head1 DESCRIPTION
 
+=head2 0.41 to 0.42
+
+=over 4
+
+=item
+
+The format for specifying actions in the configuration file has changed.
+In addition, there are no longer any default actions -- any actions not
+specified in the configuration file will be ignored.
+
+To retain existing functionality you must ensure that the following
+appears in F<config.yaml>.
+
+  actions:
+    browse:
+      class: SVN::Web::Browse
+    checkout:
+      class: SVN::Web::Checkout
+    diff:
+      class: SVN::Web::Diff
+    list:
+      class: SVN::Web::List
+    log:
+      class: SVN::Web::Log
+    revision:
+      class: SVN::Web::Revision
+    rss:
+      class: SVN::Web::RSS
+    view:
+      class: SVN::Web::View
+
+=item
+
+There have been several changes to the F<trac> templates.  If you have made
+any local modifications then you will need to merge your changes in to the
+new templates.
+
+=item
+
+Use of the C<templatedir> configuration directive is now deprecated.  You
+should use C<templatedirs> instead.  This is to support third party actions
+that supply their own templates in different directories.
+
+C<templatedir> in the configuration file will continue to work, but you
+should change existing entries of the form:
+
+  templatedir: '/path/to/directory'
+
+to this form:
+
+  templatedirs:
+    - '/path/to/directory'
+
+A configuration file that specifies both C<templatedir> and C<templatedirs>
+will generate an exception when anyone browses the repository.
+
+=back
+
 =head2 0.40 to 0.41
 
 After installing the new module you should copy

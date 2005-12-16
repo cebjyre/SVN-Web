@@ -25,21 +25,21 @@ my ($host, $script) = @_;
 sub import {
     my %repos;
     (undef, $host, $script, %repos) = @_;
-    my $config = {qw{
-branch_class              SVN::Web::Branch
-browse_class              SVN::Web::Browse
-checkout_class            SVN::Web::Checkout
-diff_class                SVN::Web::Diff
-list_class                SVN::Web::List
-log_class                 SVN::Web::Log
-revision_class            SVN::Web::Revision
-rss_class                 SVN::Web::RSS
-template_class            SVN::Web::Template;
-view_class		  SVN::Web::View
-cgi_class		  CGI
-templatedir lib/SVN/Web/Template/trac}};
+    my $config = { actions => {
+			       browse   => { class => 'SVN::Web::Browse' },
+			       checkout => { class => 'SVN::Web::Checkout' },
+			       diff     => { class => 'SVN::Web::Diff' },
+			       list     => { class => 'SVN::Web::List' },
+			       log      => { class => 'SVN::Web::Log' },
+			       revision => { class => 'SVN::Web::Revision' },
+			       rss      => { class => 'SVN::Web::RSS' },
+			       view     => { class => 'SVN::Web::View' },
+			      },
+		   cgi_class   => 'CGI',
+		   templatedirs => [ 'lib/SVN/Web/Template/trac' ],
+		   repos       => \%repos,
+		 };
 
-    $config->{repos} = \%repos;
     SVN::Web::set_config ($config);
 }
 

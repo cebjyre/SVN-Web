@@ -3,6 +3,7 @@ use strict;
 use SVN::Core;
 use SVN::Repos;
 use SVN::Fs;
+use SVN::Web::X;
 
 =head1 NAME
 
@@ -14,10 +15,9 @@ In F<config.yaml>
 
   actions:
     ...
-    - browse
+    browse:
+      class: SVN::Web::Browse
     ...
-
-  browse_class: SVN::Web::Browse
 
 =head1 DESCRIPTION
 
@@ -93,6 +93,13 @@ The repository's youngest revision.
 
 =head1 EXCEPTIONS
 
+=over 4
+
+=item (path %1 does not exist in revision %2)
+
+The given path is not present in the repository at the given revision.
+
+=back
 
 =cut
 
@@ -102,13 +109,6 @@ sub new {
     %$self = @_;
 
     return $self;
-}
-
-sub _log {
-    my ($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
-    return unless $rev > 0;
-
-    return ($author, $date, $msg);
 }
 
 sub run {
@@ -123,7 +123,11 @@ sub run {
     $path =~ s|/$|| unless $path eq '/';
     my $root = $fs->revision_root ($rev);
     my $kind = $root->check_path ($path);
-    die "path '$path' does not exist in revision $rev" if $kind == $SVN::Node::none;
+
+    if($kind == $SVN::Node::none) {
+      SVN::Web::X->throw(error => '(path %1 does not exist in revision %2)',
+			 vars => [$path, $rev]);
+    }
 
     die "not a directory in browse" unless $kind == $SVN::Node::dir;
 
@@ -144,13 +148,9 @@ sub run {
 				       'svn:mime-type') unless $_->{isdir};
 	$_->{type} =~ s|/\w+|| if $_->{type};
 
-	# Get the log for this revision of the file
-	#
-	# At least some of this shouldn't be necessary, as the 'last-author'
-	# and 'log' properties should be accessible.  But I can't get
-	# the code to work, hence this workaround.
-	$self->{repos}->get_logs([$path], $_->{rev}, $_->{rev}, 0, 1,
-				 sub { ($_->{author}, $_->{date_modified}, $_->{msg}) = $self->_log(@_)});
+	$_->{author} = $fs->revision_prop($_->{rev}, 'svn:author');
+	$_->{date_modified} = $fs->revision_prop($_->{rev}, 'svn:date');
+	$_->{msg} = $fs->revision_prop($_->{rev}, 'svn:log');
 
 	$spool->clear;
     }
@@ -158,12 +158,22 @@ sub run {
     # TODO: custom sorting
     @$entries = sort {($b->{isdir} <=> $a->{isdir}) || ($a->{name} cmp $b->{name})} @$entries;
 
+    my @props = ();
+    foreach my $prop_name (qw(svn:externals)) {
+      my $prop_value = $root->node_prop($path, $prop_name);
+      if(defined $prop_value) {
+	$prop_value =~ s/\s*\n$//ms;
+	push @props, { name  => $prop_name,
+		       value => $prop_value,
+		       };
+      }
+    }
+
     return { template => 'browse',
 	     data => { entries => $entries,
 		       rev => $rev,
 		       youngest_rev => $fs->youngest_rev(),
-		       branchto => $self->{branch}->branchto ($self->{path}, $rev),
-		       branchfrom => $self->{branch}->branchfrom ($self->{path}, $rev),
+		       props => \@props,
 		     }};
 }
 

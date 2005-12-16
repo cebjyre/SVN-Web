@@ -1,3 +1,9 @@
+[% USE cgi = CGI %]
+
+<h1>[%|l(script, repos, rev1, rev2)%](diff range)[%END%]</h1>
+
+<p><a href="[% cgi.url(path => 1) %]?rev1=[% rev2 %];rev2=[% rev1 %]">[%|l%](reverse diff)[%END%]</a></p>
+
 <div class="diff">
   <ul>
     <li><h2>[% path %]</h2>

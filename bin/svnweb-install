@@ -38,6 +38,25 @@ while (my ($from, $to) = each %targets) {
 }
 
 print $fh <<END;
+# Actions, and the classes that implement them.
+actions:
+  browse:
+    class: SVN::Web::Browse
+  checkout:
+    class: SVN::Web::Checkout
+  diff:
+    class: SVN::Web::Diff
+  list:
+    class: SVN::Web::List
+  log:
+    class: SVN::Web::Log
+  revision
+    class: SVN::Web::Revision
+  rss:
+    class: SVN::Web::RSS
+  view:
+    class: SVN::Web::View
+
 # Suggested minimum filters to run log messages through.  Note that
 # it is not fatal if one of these filters is not installed.
 log_msg_filters:
@@ -77,7 +96,7 @@ print $fh <<"END";
 $Config::Config{startperl} -w
 #use lib '.';
 #use lib '../lib';
-eval 'use CGI::Carp qw(fatalsToBrowser)';
+use CGI::Carp qw(fatalsToBrowser);
 use SVN::Web;
 SVN::Web::run_cgi();
 END

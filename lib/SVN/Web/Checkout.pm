@@ -3,6 +3,7 @@ use strict;
 use SVN::Core;
 use SVN::Repos;
 use SVN::Fs;
+use SVN::Web::X;
 
 =head1 NAME
 
@@ -14,10 +15,9 @@ In F<config.yaml>
 
   actions:
     ...
-    - checkout
+    checkout:
+      class: SVN::Web::Checkout
     ...
-
-  checkout_class: SVN::Web::Checkout
 
 =head1 DESCRIPTION
 
@@ -43,9 +43,9 @@ N/A
 
 =over 4
 
-=item C<not a file>
+=item (path %1 is not a file in revision %2)
 
-Thrown if the given path is not a file.
+The given path is not a file in the given revision.
 
 =back
 
@@ -66,7 +66,10 @@ sub run {
     my $rev = $self->{cgi}->param('rev') || $fs->youngest_rev;
     my $root = $fs->revision_root ($rev);
 
-    die "not a file" unless $root->is_file ($self->{path});
+    if(! $root->is_file($self->{path})) {
+        SVN::Web::X->throw(error => '(path %1 is not a file in revision %2)',
+			   vars => [$self->{path}, $rev])
+    }
 
     my $file = $root->file_contents ($self->{path});
     local $/;

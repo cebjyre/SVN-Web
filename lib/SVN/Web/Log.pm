@@ -14,10 +14,9 @@ In F<config.yaml>
 
   actions:
     ...
-    - log
+    log:
+      class: SVN::Web::Log
     ...
-
-  log_class: SVN::Web::Log
 
 =head1 DESCRIPTION
 
@@ -217,7 +216,6 @@ sub run {
 		      limit => $limit,
 		      rev => $rev,
 		      youngest_rev => $fs->youngest_rev(),
-		      branchpoints => $self->{branch}->branchpoints ($self->{path}),
 		    }};
 }
 

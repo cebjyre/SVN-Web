@@ -1,12 +1,14 @@
+# -*- Mode: cperl; cperl-indent-level: 4 -*-
 package SVN::Web;
 use strict;
-our $VERSION = '0.41';
+our $VERSION = '0.42';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
 use Template;
 use URI;
 use File::Spec::Unix;
+use SVN::Web::X;
 eval 'use FindBin';
 {
 no warnings 'uninitialized';
@@ -43,16 +45,12 @@ See
 L<http://jc.ngo.org.uk/~nik/cgi-bin/svnweb/index.cgi/jc/browse/nik/CPAN/SVN-Web/trunk/>
 for the SVN::Web source code, browsed using SVN::Web.
 
-
 =head1 DESCRIPTION
 
 SVN::Web provides a web interface to subversion repositories. You can
 browse the tree, view history of a directory or a file, see what's
 changed in a specific revision, track changes with RSS, and also view
 diff.
-
-SVN::Web also tracks the branching feature (node copy) of subversion,
-so you can easily see the relationship between branches.
 
 =head1 CONFIGURATION
 
@@ -105,17 +103,25 @@ The default templates are installed in F<templates/trac>.  These implement
 a look and feel similar to the Trac (L<http://www.edgewall.com/trac/>)
 output.
 
-To change to another set, use the C<templatedir> configuration directive.
+To change to another set, use the C<templatedirs> configuration directive.
 
 For example, to use a set of templates that implement a much plainer look
 and feel:
 
-  templatedir: 'template/plain'
+  templatedirs:
+    - 'template/plain'
 
 Alternatively, if you have your own templates elsewhere you can
 specify a full path to the templates.
 
-  templatedir: '/full/path/to/template/directory'
+  templatedirs:
+    - '/full/path/to/template/directory'
+
+You can specify more than one directory in this list, and templates
+will be searched for in each directory in turn.  This makes it possible for
+actions that are not part of the core SVN::Web to ship their own templates.
+The documentation for these actions should explain how to adjust
+C<templatedirs> so their templates are found.
 
 For more information about writing your own templates see
 L</"ACTIONS, SUBCLASSES, AND URLS">.
@@ -208,7 +214,7 @@ if you have a web-based issue tracking system, you might write a plugin
 that recognises text of the form C<t#1234> and turns it in to a link to
 ticket #1234 in your ticketing system.
 
-=head2 Actions and action classes
+=head2 Actions, action classes, and action options
 
 Each action that SVN::Web can carry out is implemented as a class (see
 L</"ACTIONS, SUBCLASSES, AND URLS"> for more).  You can specify your own
@@ -216,28 +222,21 @@ class for a particular action.  This lets you implement your own actions,
 or override the behaviour of existing actions.
 
 The complete list of actions is listed in the C<actions> configuration
-directive.  The default value for this directive if it is not present is;
-
-  actions:
-    - browse
-    - checkout
-    - diff
-    - list
-    - log
-    - revision
-    - RSS
-    - view
+directive.
 
 If you delete items from this list then the corresponding action becomes
 unavailable.  For example, if you would like to prevent people from retrieving
 an RSS feed of changes, just delete the C<- RSS> entry from the list.
 
-To provide your own behaviour for standard actions, specify an C<<
-<action>_class >> configuration that names the class that implements
-the action.  For example, to specify your own class that implements
-the C<view> action;
+To provide your own behaviour for standard actions just specify a
+different value for the C<class> key.  For example, to specify your
+own class that implements the C<view> action;
 
-  view_class: My::SVN::Web::View
+  actions:
+    ...
+    view:
+      class: My::View::Class
+    ...
 
 If you wish to implement your own action, give the action a name, add
 it to the C<actions> list, and then specify the class that carries out
@@ -247,19 +246,36 @@ For example, SVN::Web currently provides no equivalent to the
 Subversion C<annotate> command.  If you implement this, you would write:
 
   actions:
-    - ...
-    - annotate
-    - ...
+    ...
+    annotate:
+      class: My::Class::That::Implements::Annotate
+    ...
 
-  annotate_class: My::Class::That::Implements::Annotate
+Please feel free to submit any classes that implement additional
+functionality back to the maintainers, so that they can be included in
+the distribution.
 
-Naturally, you would submit this back to the maintainers so that it can
-be included in the standard distribution.
+Actions may have configurable options specified in F<config.yaml> under
+the C<opts> key.  Continuing the C<annotate> example, the action may be
+written to provide basic output by default, but feature a C<verbose>
+flag that you can enable globally.  That would be configured like so:
 
-If an action is listed in C<actions> and there is no corresponding C<<
-<action>_class >> directive then SVN::Web takes the action name,
-converts the first character to uppercase, and then looks for an C<<
-SVN::Web::<Action> >> package.
+  actions:
+    ...
+    annotate:
+      class: My::Class::That::Implements::Annotate
+      opts:
+        verbose: 1
+    ...
+
+The documentation for each action should explain in more detail how it
+should be configured.  See L<SVN::Web::action> for more information 
+about writing actions.
+
+If an action is listed in C<actions> and there is no corresponding
+C<class> directive then SVN::Web takes the action name, converts the
+first character to uppercase, and then looks for an
+C<<SVN::Web::<Action> >> package.
 
 =head2 CGI class
 
@@ -371,11 +387,29 @@ my $config;
 
 my %REPOS;
 
-our @DEFAULT_ACTIONS = qw(browse checkout diff list log revision RSS view);
-
 sub load_config {
     my $file = shift || 'config.yaml';
-    return $config ||= YAML::LoadFile ($file);
+    $config ||= YAML::LoadFile ($file);
+
+    # Deal with possibly conflicting 'templatedir' and 'templatedirs' settings.
+
+    # If neither of them are set, use 'templatedirs'
+    if(! exists $config->{templatedir} and ! exists $config->{templatedirs}) {
+	$config->{templatedirs} = [ 'template/trac' ];
+    }
+
+    # If 'templatedir' is the only one set, use it.
+    if(exists $config->{templatedir} and ! exists $config->{templatedirs}) {
+	$config->{templatedirs} = [ $config->{templatedir} ];
+	delete $config->{templatedir};
+    }
+
+    # If they're both set then throw an error
+    if(exists $config->{templatedir} and exists $config->{templatedirs}) {
+        die "templatedir and templatedirs both defined in config.yaml";
+    }
+
+    return;
 }
 
 sub set_config {
@@ -387,17 +421,29 @@ my $repospool = SVN::Pool->new;
 sub get_repos {
     my ($repos) = @_;
 
-    die "please configure your repository"
+    SVN::Web::X->throw(error => '(unconfigured repository)',
+		       vars => [])
 	unless $config->{repos} || $config->{reposparent};
 
-    die "no such repository $repos"
+    my $repo_path = 
+      $config->{reposparent} ? "$config->{reposparent}/$repos"
+	: $config->{repos}{$repos};
+
+    SVN::Web::X->throw(error => '(no such repo %1 %2)',
+		       vars => [$repos, $repo_path])
 	unless ($config->{reposparent} &&
 		-d "$config->{reposparent}/$repos")
-	    || exists $config->{repos}{$repos};
+	    || exists $config->{repos}{$repos} && -d $config->{repos}{$repos};
 
-    $REPOS{$repos} ||= SVN::Repos::open
-	($config->{reposparent} ? "$config->{reposparent}/$repos"
-	 : $config->{repos}{$repos}, $repospool) or die $!;
+    eval {
+	$REPOS{$repos} ||= SVN::Repos::open($repo_path, $repospool);
+    };
+
+    if($@) {
+	my $e = $@;
+	SVN::Web::X->throw(error => '(SVN::Repos::open failed: %1 %2)',
+			   vars => [$repo_path, $e]);
+    }
 
     if ( $config->{block} ) {
         foreach my $blocked ( @{ $config->{block} } ) {
@@ -412,7 +458,8 @@ sub repos_list {
     my @repos;
     if ($config->{reposparent}) {
         opendir my $dh, "$config->{reposparent}"
-            or die "Cannot read $config->{reposparent}: $!";
+            or SVN::Web::X->throw(error => '(opendir reposparent %1 %2)',
+				  vars => [$config->{reposparent}, $!]);
 
         foreach my $dir (grep { -d "$config->{reposparent}/$_" && ! /^\./ } readdir $dh) {
             push @repos, $dir;
@@ -428,14 +475,24 @@ sub repos_list {
 
 sub get_handler {
     my $cfg = shift;
-    my $pkg = $config->{"$cfg->{action}_class"};
+    my $pkg;
+
+    if(exists $config->{actions}{$cfg->{action}}) {
+	if(ref($config->{actions}{$cfg->{action}}) eq 'HASH') {
+	    if(exists $config->{actions}{$cfg->{action}}{class}) {
+		$pkg = $config->{actions}{$cfg->{action}}{class};
+	    }
+	}
+    }
+
     unless ($pkg) {
 	$pkg = $cfg->{action};
 	$pkg =~ s/^(\w)/\U$1/;
 	$pkg = __PACKAGE__."::$pkg";
     }
-    die "no such plugin $pkg" unless $pkg;
-    eval "require $pkg && $pkg->can('run')" or die $@;
+    eval "require $pkg && $pkg->can('run')" or
+      SVN::Web::X->throw(error => '(missing package %1 for action %2: %3)',
+			 vars => [$pkg, $cfg->{action}, $@]);
     my $repos = $cfg->{repos} ? $REPOS{$cfg->{repos}} : undef;
     return $pkg->new (%$cfg, reposname => $cfg->{repos},
 		      repos => $repos,
@@ -449,35 +506,44 @@ sub run {
 
     my $obj;
     my $html;
+
     if (defined $cfg->{repos} && length $cfg->{repos}) {
-        get_repos ($cfg->{repos});
+	get_repos ($cfg->{repos});
     }
 
     if ($cfg->{repos} && $REPOS{$cfg->{repos}}) {
-        @{$cfg->{navpaths}} = File::Spec::Unix->splitdir ($cfg->{path});
-        shift @{$cfg->{navpaths}};
-        # should use attribute or things alike
-
-        my $branch = get_handler ({%$cfg, action => 'branch'});
-        $obj = get_handler ({%$cfg, branch => $branch});
+	@{$cfg->{navpaths}} = File::Spec::Unix->splitdir ($cfg->{path});
+	shift @{$cfg->{navpaths}};
+	# should use attribute or things alike
+	$obj = get_handler ({%$cfg,
+       			     opts => exists $config->{actions}{$cfg->{action}}{opts} ?
+			                    $config->{actions}{$cfg->{action}}{opts} :
+			                    { },
+			    });
     } else {
-        $obj = get_handler ({%$cfg, action => 'list'});
+	$cfg->{action} = 'list';
+	$obj = get_handler ({%$cfg,
+       			     opts => exists $config->{actions}{$cfg->{action}}{opts} ?
+			                    $config->{actions}{$cfg->{action}}{opts} :
+			                    { },
+			    });
     }
 
     loc_lang($cfg->{lang} ? $cfg->{lang} : ());
-    $html = eval { $obj->run };
+    $html = $obj->run();
 
-    die "operation failed: $@" if $@;
-
-    $cfg->{output_sub}->($cfg, $html);
+    return $html;
 }
 
 sub cgi_output {
     my ($cfg, $html) = @_;
 
+    return unless defined $html;
+
     if (ref ($html)) {
 	print $cfg->{cgi}->header(-charset => $html->{charset} || 'UTF-8',
 				  -type => $html->{mimetype} || 'text/html');
+
 	if ($html->{template}) {
 	    $template->process ($html->{template},
 				{ %$cfg,
@@ -526,7 +592,7 @@ sub mod_perl_output {
 our $pool; # global pool for holding opened repos
 
 sub get_template {
-    Template->new ({ INCLUDE_PATH => ($config->{templatedir} || 'template/trac/'),
+    Template->new ({ INCLUDE_PATH => $config->{templatedirs},
 		     PRE_PROCESS => 'header',
 		     POST_PROCESS => 'footer',
 		     FILTERS => { l => ([\&loc_filter, 1]),
@@ -538,32 +604,49 @@ sub run_cgi {
     $pool ||= SVN::Pool->new_default;
     load_config ('config.yaml');
     $template ||= get_template ();
-
-    $config->{actions} ||= \@DEFAULT_ACTIONS;
     $config->{diff_context} ||= 3;
 
     my $cgi_class = $config->{cgi_class} || (eval { require CGI::Fast; 1 } ? 'CGI::Fast' : 'CGI');
 
     while (my $cgi = $cgi_class->new) {
-	# /<repository>/<action>/<path>/<file>?others
-	my (undef, $repos, $action, $path) = split ('/', $cgi->path_info, 4);
-	$action ||= 'browse';
-	$path ||= '';
+	my($html, $cfg);
+	eval {
+	    # /<repository>/<action>/<path>/<file>?others
+	    my (undef, $repos, $action, $path) = split ('/', $cgi->path_info, 4);
+	    $action ||= 'browse';
+	    $path ||= '';
 
-	die "action '$action' not supported" 
-	  unless scalar grep(lc($_) eq lc($action), @{$config->{actions}});
+	    my $base_uri = URI->new($cgi->url())->as_string();
+	    $base_uri =~ s{/index.cgi}{};
 
-	my $base_uri = URI->new($cgi->url())->as_string();
-	$base_uri =~ s{/index.cgi}{};
+	    $cfg = { repos => $repos,
+		     action => $action,
+		     path => "/$path",
+		     script => $ENV{SCRIPT_NAME},
+		     base_uri => $base_uri,
+		     style => $config->{style},
+		     cgi => $cgi,
+		   };
+	
+	    SVN::Web::X->throw(error => '(action %1 not supported)',
+			       vars => [$action])
+		unless exists $config->{actions}{lc($action)};
+	
+	    $html = run($cfg);
+	};
 
-	run ({ repos => $repos,
-	       action => $action,
-	       path => '/'.$path,
-	       script => $ENV{SCRIPT_NAME},
-	       base_uri => $base_uri,
-               output_sub => \&cgi_output,
-	       style => $config->{style},
-	       cgi => $cgi});
+	my $e;
+	if($e = SVN::Web::X->caught()) {
+	    $html->{template} = 'x';
+	    $html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
+	} else {
+	    if($@) {
+		$html->{template} = 'x';
+		$html->{data}{error_msg} = $@;
+	    }
+	}
+
+	cgi_output($cfg, $html);
 	last if $cgi_class eq 'CGI';
     }
 }
@@ -633,26 +716,47 @@ sub handler {
     $repos ||= '';
 
     if ($repos) {
-        $script = $1 if $r->uri =~ m|^((?:/\w+)+?)/\Q$repos\E| or die "can't find script";
+        $script = $1 if $r->uri =~ m|^((?:/\w+)+?)/\Q$repos\E| or
+	  SVN::Web::X->throw(error => '(can\'t find script in %1)',
+			     vars => [$r->uri]);
     }
     chdir ($base);
     $pool ||= SVN::Pool->new_default;
     load_config ('config.yaml');
 
-    my (undef, $action, $path) = split ('/', $r->path_info, 3);
-    $action ||= 'browse';
-    $path ||= '';
+    my($html, $cfg);
+    eval {
+	my (undef, $action, $path) = split ('/', $r->path_info, 3);
+	$action ||= 'browse';
+	$path ||= '';
 
-    run ({ repos => $repos,
-	   action => $action,
-	   script => $script,
-	   path => '/'.$path,
-           output_sub => \&mod_perl_output,
-	   request => $r,
-	   style   => $config->{style},
-           cgi     => ref ($r) eq 'Apache::Request' ? $r : CGI->new});
+	$cfg = { repos => $repos,
+		 action => $action,
+		 script => $script,
+		 path => "/$path",
+		 request => $r,
+		 style => $config->{style},
+		 cgi => ref($r) eq 'Apache::Request' ? $r : CGI->new(),
+		 opts => exists $config->{actions}{$action}{opts} ?
+		                $config->{actions}{$action}{opts} :
+       		                { },
+	       };
 
-   return &Apache::OK;
+	SVN::Web::X->throw(error => '(action %1 not supported)',
+			   vars => [$action])
+	    unless exists $config->{actions}{lc($action)};
+
+	$html = run($cfg);
+    };
+
+    my $e;
+    if($e = SVN::Web::X->caught()) {
+	$html->{template} = 'x';
+	$html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
+    }
+
+    mod_perl_output($cfg, $html);
+    return &Apache::OK;
 }
 
 =head1 SEE ALSO

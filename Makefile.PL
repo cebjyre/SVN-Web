@@ -19,7 +19,9 @@ requires(
 	'Template::Plugin::Number::Format' => '0',
 	'Locale::Maketext::Lexicon' => 0,
 	'Locale::Maketext::Simple' => 0,
-	'URI' => 0);
+	'URI' => 0,
+	'Exception::Class' => 0,
+	'List::Util' => 0);
 
 recommends(
 	'Template::Plugin::Clickable' => 0,

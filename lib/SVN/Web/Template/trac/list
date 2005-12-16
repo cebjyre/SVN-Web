@@ -1,6 +1,6 @@
 [% IF reposcount %]
 <p>
-[%|l%](choose repos)[%END%]:
+[%|l%](choose repos)[%END%]
 </p>
 
 <ul>

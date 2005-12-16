@@ -1,14 +1,21 @@
 [% USE cgi = CGI %]
 
-<div class="title">(<a href="[% script %]/[% repos %]/rss[% path %]">[%|l%]RSS[%END%]</a>)</div>
+<p>[% IF ! isdir %]<a href="[% script %]/[% repos %]/checkout[% path %][% revstr %]">[%|l%](checkout)[%END%]</a> | [% END %]<a href="[% script %]/[% repos %]/rss[% path %]">[%|l%](rss)[%END%]</a></p>
 
 <div class="title"><form action="[% cgi.self_url %]" method="get">
   [%|l%](show last)[%END%] <input name="limit" size=4 value="[% limit %]" /> [%|l%](changes)[%END%]</form>
 </div>
 
+[% IF ! isdir %]
+<form action="[% script %]/[% repos %]/diff[% path %]" method="get">
+<input type="submit" value="[%|l%](diff selected revisions)[%END%]"/>
+[% END %]
 <table id="chglist" class="listing" summary="[%|l%](revision log)[%END%]">
   <thead>
     <tr>
+[% IF ! isdir %]
+      <th></th>
+[% END %]
       <th class="date">[%|l%](date)[%END%]</th>
       <th class="rev">[%|l%](file)[%END%]</th>
       <th class="chgset">[%|l%](revision)[%END%]</th>
@@ -20,6 +27,9 @@
   <tbody>
   [% FOREACH revs %]
   <tr class="[% loop.count % 2 ? "even" : "odd" %]">
+[% IF ! isdir %]
+    <td><input type="checkbox" name="revs" value="[% rev %]" /></td>
+[% END %]
     <td class="date">[% date.replace('T', ' ').replace('\..+', '').replace('-', '/') %]</td>
     <td class="rev">[% IF isdir %]
         <a href="[% script %]/[% repos %]/browse[% path %]?rev=[% rev %]">[% rev %]</a>
@@ -72,3 +82,6 @@
   [% END %]
   </tbody>
 </table>
+[% IF ! isdir %]
+</form>
+[% END %]

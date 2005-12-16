@@ -8,6 +8,52 @@ Changes between SVN::Web versions.
 
 =head1 DESCRIPTION
 
+=head2 0.42
+
+=over
+
+=item
+
+Throw exceptions instead of die()ing on almost all errors.  Catch the
+exceptions and generate much friendlier error messages.  Error messages
+are now easy to localise.
+
+=item
+
+When viewing a diff, the I<trac> templates show the two revision numbers
+being compared, and include a link allowing the user to reverse the order
+of the diff.
+
+=item
+
+The syntax for specifying permitted actions, and the classes that implement
+them, has changed.  See L<UPDATING> for more information.  This mechanism
+also allows for easy configuration of per-action options.
+
+=item
+
+A (partial) French localisation has been suppled by Cyril Brulebois.
+
+=item
+
+Any C<svn:externals> properties that are set on a directory are now shown
+when browsing that directory.
+
+=item
+
+When viewing a file's revision log, you can now select two arbitrary
+revisions and get a diff showing the changes between those revisions.
+Fixes rt#15813.
+
+=item
+
+If you only have one repository configured then the C<list> action can be
+configured to immediately redirect to browsing that repository, saving the
+user from having to click through an intermediate page.  See L<SVN::Web::List>
+for more information.
+
+=back
+
 =head2 0.41, released Nov 4, 2005
 
 =over
@@ -59,7 +105,7 @@ A fix for rt#12431.  URLs without trailing slashes are fixed.
 
 =item
 
-A mechanism to 'stack' Template Toolkit filters. You can run easily run 
+A mechanism to 'stack' Template Toolkit filters. You can easily run 
 log messages through an arbitrary number of filters, without causing 
 problems if one or more of the filters is not installed.
 

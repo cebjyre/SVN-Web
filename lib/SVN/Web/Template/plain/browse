@@ -1,21 +1,6 @@
 <div class="title">
 [%|l(path, revision)%]browsing %1 (of revision %2)[%END%]
 <a href="[% script %]/[% repos %]/log[% path %]?rev=[% rev %]">[%|l%](history of this directory)[%END%]</a>
-[% IF branchto %]
-<hr>
-[%|l%]Branch to:[%END%]
-[% FOR branchto %]
-<a href="[% script %]/[% repos %]/browse[% dst %]">[% dst %]</a>:
-<a href="[% script %]/[% repos %]/revision/?rev=[% dstrev %]">[% dstrev %]</a> [%|l(srcrev)%](from revision %1)[%END%]
-[% END %]
-[% END %]
-[% IF branchfrom %]
-<hr>
-[%|l%]Branch from:[%END%]
-[% FOR branchfrom %]
-<a href="[% script %]/[% repos %]/browse[% src %]">[% src %]</a>:[% srcrev %] <a href="[% script %]/[% repos %]/revision/?rev=[% dstrev %]">[%|l(dstrev)%](to revision %1)[%END%]</a>
-[% END %]
-[% END %]
 </div>
 [% IF entries.size == 0 %]
 <p>No entries in this directory.</p>

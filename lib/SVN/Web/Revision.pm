@@ -4,6 +4,7 @@ use Text::Diff;
 use SVN::Core;
 use SVN::Repos;
 use SVN::Fs;
+use SVN::Web::X;
 
 =head1 NAME
 
@@ -15,10 +16,9 @@ In F<config.yaml>
 
   actions:
     ...
-    - revision
+    revision:
+      class: SVN::Web::Revision
     ...
-
-  revision_class: SVN::Web::Revision
 
 =head1 DESCRIPTION
 
@@ -118,7 +118,7 @@ the file that it was copied form.
 
 =over 4
 
-=item C<no revision>
+=item (no revision)
 
 The C<rev> parameter was not given.
 
@@ -155,7 +155,10 @@ sub _log {
 sub run {
     my $self    = shift;
     my $pool    = SVN::Pool->new_default_sub;
-    my $rev     = $self->{cgi}->param('rev') || die 'no revision';
+    my $rev     = $self->{cgi}->param('rev') || 
+      SVN::Web::X->throw(error => '(no revision)',
+			 vars => []);
+
     my $context = $self->{cgi}->param('context')
                   || $self->{config}->{diff_context};
 

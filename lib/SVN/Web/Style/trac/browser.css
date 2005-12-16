@@ -35,6 +35,10 @@ h1 .sep { color: #666; padding: 0 .1em }
 #dirlist td.name a, #dirlist td.rev a { border-bottom: none; display: block }
 #dirlist td.change * { font-size: 9px }
 
+/* Styles for the property list table
+   (extends the styles for "table.listing") */
+#proplist td.propvalue { width: 100%; }
+
 /* Styles for the revision log table
    (extends the styles for "table.listing") */
 #chglist { margin-top: 0 }

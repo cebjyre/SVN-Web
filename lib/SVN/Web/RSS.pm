@@ -14,10 +14,9 @@ In F<config.yaml>
 
   actions:
     ...
-    - rss
+    rss:
+      class: SVN::Web::RSS
     ...
-
-  rss_class: SVN::Web::RSS
 
 =head1 DESCRIPTION
 

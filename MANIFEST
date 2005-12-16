@@ -15,12 +15,11 @@ inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/SVN/Web.pm
 lib/SVN/Web/action.pm
-lib/SVN/Web/Branch.pm
-lib/SVN/Web/Branch/YAML.pm
 lib/SVN/Web/Browse.pm
 lib/SVN/Web/Checkout.pm
 lib/SVN/Web/Diff.pm
 lib/SVN/Web/I18N/en.po
+lib/SVN/Web/I18N/fr.po
 lib/SVN/Web/I18N/zh_cn.po
 lib/SVN/Web/I18N/zh_tw.po
 lib/SVN/Web/List.pm
@@ -49,6 +48,7 @@ lib/SVN/Web/Template/plain/list
 lib/SVN/Web/Template/plain/log
 lib/SVN/Web/Template/plain/revision
 lib/SVN/Web/Template/plain/view
+lib/SVN/Web/Template/plain/x
 lib/SVN/Web/Template/trac/browse
 lib/SVN/Web/Template/trac/diff
 lib/SVN/Web/Template/trac/footer
@@ -57,8 +57,10 @@ lib/SVN/Web/Template/trac/list
 lib/SVN/Web/Template/trac/log
 lib/SVN/Web/Template/trac/revision
 lib/SVN/Web/Template/trac/view
+lib/SVN/Web/Template/trac/x
 lib/SVN/Web/Test.pm
 lib/SVN/Web/View.pm
+lib/SVN/Web/X.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml

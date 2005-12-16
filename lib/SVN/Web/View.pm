@@ -14,10 +14,9 @@ In F<config.yaml>
 
   actions:
     ...
-    - view
+    view:
+      class: SVN::Web::View
     ...
-
-  view_class: SVN::Web::View
 
 =head1 DESCRIPTION
 

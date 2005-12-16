@@ -31,7 +31,7 @@ msgstr "Checkout"
 
 #: ../Template/trac/list:3
 msgid "(choose repos)"
-msgstr "Please select a repository to browse"
+msgstr "Please select a repository to browse:"
 
 #: ../Template/trac/revision:43 ../Template/trac/revision:62
 msgid "(copied from)"
@@ -60,7 +60,7 @@ msgstr ""
 
 #: ../Template/trac/browse:7
 msgid "(goto revision)"
-msgstr "View Revision"
+msgstr "Go to:"
 
 #: ../Template/trac/browse:24
 msgid "(last change)"
@@ -92,7 +92,7 @@ msgstr "No repositories are available for browsing."
 
 #: ../Template/trac/footer:4
 msgid "(powered by)"
-msgstr "Powered by"
+msgstr "Powered by SVN::Web"
 
 #: ../Template/trac/revision:11
 msgid "(previous revision)"
@@ -109,6 +109,9 @@ msgstr "Repository List"
 #: ../Template/trac/browse:13 ../Template/trac/log:17 ../Template/trac/log:9 ../Template/trac/revision:29 ../Template/trac/view:1 ../Template/trac/view:3
 msgid "(revision log)"
 msgstr "Revision Log"
+
+msgid "(view revision log)"
+msgstr "View Revision Log"
 
 #: ../Template/trac/revision:7
 msgid "(revision navigation)"
@@ -135,5 +138,129 @@ msgid "(youngest revision)"
 msgstr "Most Recent"
 
 #: ../Template/trac/log:3
-msgid "RSS"
-msgstr ""
+msgid "(rss)"
+msgstr "RSS feed"
+
+msgid "(diff range)"
+msgstr "Diff between <a href=\"%1/%2/revision?rev=%3\">%3</a> and <a href=\"%1/%2/revision?rev=%4\">%4</a>"
+
+msgid "(reverse diff)"
+msgstr "Reverse Diff"
+
+msgid "(path %1 does not exist in revision %2)"
+msgstr "The path <tt>\"%1\"</tt> does not exist in the repository at "
+"revision %2.\n"
+"\n"
+"This is probably caused by a typo in the URL.  This error should never "
+"happen from a link that you have clicked within SVN::Web.  It is more likely "
+"that you have followed a link from an outside source, and that link is "
+"either broken, or refers to a file that is no longer in the repository.\n"
+"\n"
+"If you are absolutely certain that you link you are following was generated "
+"by SVN::Web (and you know that the file definitely exists in the repository "
+"at this revision) then please report this as a bug so that it can be fixed."
+
+msgid "(path %1 is not a file in revision %2)"
+msgstr "The path <tt>\"%1\"</tt> is not a file in the repository at "
+"revision %2.\n"
+"\n"
+"This is probably caused by inadvertently trying to checkout a directory. "
+"The <tt>checkout</tt> action can only be used on files."
+
+msgid "(no revision)"
+msgstr "You must provide a revision for this action to operate on."
+
+msgid "(action %1 not supported)"
+msgstr "The action \"%1\" has not been enabled in this SVN::Web "
+"installation.\n"
+"\n"
+"For this action to work (assuming it's not a typo) it must be listed in "
+"the <tt>actions:</tt> directive in <tt>config.yaml</tt>.  See <b>Actions "
+"and action classes</b> in the SVN::Web documentation for more information."
+
+msgid "(unconfigured repository)"
+msgstr "This repository has not been configured in <tt>config.yaml</tt>. "
+"You must use either the <tt>repos</tt> or <tt>reposparent</tt> directives "
+"to do this.  Please see the SVN::Web documentation for more information."
+
+msgid "(no such repo %1 %2)"
+msgstr "The repository called <tt>%1</tt> has been configured with a path "
+"of <tt>%2</tt>.  This path does not exist, and probably indicates a typo "
+"in the configuration file."
+
+msgid "(SVN::Repos::open failed: %1 %2)"
+msgstr "The repository at path <tt>%1</tt> could not be opened.\n"
+"\n"
+"The error from Perl was:\n"
+"\n"
+"<tt>%2</tt>."
+
+msgid "(missing package %1 for action %2: %3)"
+msgstr "A package could not be found for the action \"%2\". The package "
+"that was looked for was <tt>%1</tt>.\n"
+"\n"
+"This may mean that the action was a typo.  If it wasn't then you "
+"need code to implement this action.  Either:\n"
+"\n"
+"a.  Install an SVN::Web::%1 package that implements it, or\n"
+"\n"
+"b.  Install another package that implements it (e.g., My::Action::%2) "
+"and then include an entry in <tt>config.yaml</tt> that maps the action "
+"name to a class, such as\n"
+"\n"
+"<pre>\n"
+"actions:\n"
+"  ...\n"
+"  %2:\n"
+"    class: My::Action::%2\n"
+"</pre>\n"
+"\n"
+"<b>Note:</b> The package <b>must</b> implement a <tt>run()</tt> method. "
+"See <b>Actions and action classes</b> in the SVN::Web documentation for "
+"more information."
+"\n"
+"The error from Perl was:\n"
+"\n"
+"<tt>%3</tt>"
+
+msgid "(can't find script in %1)"
+msgstr "The uri <tt>%1</tt> doesn't seem to contain a reference to the "
+"script.  This is one of those \"can't happen\" errors.  If you see this "
+"on a live SVN::Web installation, please report it as a bug.  When you do "
+"that, please include this message, and the contents of your "
+"<tt>config.yaml</tt> file."
+
+msgid "(opendir reposparent %1 %2)"
+msgstr "The <tt>reposparent</tt> configuration entry specifies a directory "
+"called '%1'.  This directory could not be opened.\n"
+"\n"
+"The error from Perl was:\n"
+"\n"
+"<tt>%2</tt>"
+
+msgid "(two revisions must be provided)"
+msgstr "To carry out a diff you must specify the two revisions that you "
+"want to compare.  You haven't selected any.  Please go back, and "
+"select the two revisions that you want to compare."
+
+msgid "(rev1 and rev2 must be different)"
+msgstr "To carry out a diff you must specify the two revisions that you "
+"want to compare.  You only selected one revision.  Please go back, and "
+"select the revision you want to compare against."
+
+msgid "(diff selected revisions)"
+msgstr "Show diff of selected revisions"
+
+msgid "(prop-name)"
+msgstr "Property"
+
+msgid "(prop-value)"
+msgstr "Value"
+
+msgid "(templatedir and templatedirs defined)"
+msgstr "The configuration file contains <tt>templatedir</tt> and a "
+"<tt>templatedirs</tt> (note: extra 's') directives.  These directives "
+"are mutually incompatible.\n"
+"\n"
+"You probably need to remove the <tt>templatedir</tt> directive, and "
+"include its value in the <tt>templatedirs</tt> directive."

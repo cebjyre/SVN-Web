@@ -6,6 +6,8 @@ use Text::Diff;
 use SVN::Core;
 use SVN::Repos;
 use SVN::Fs;
+use SVN::Web::X;
+use List::Util qw(max min);
 
 eval 'use SVN::DiffEditor 0.09; require IO::String; 1' and my $has_svk = 1;
 
@@ -19,10 +21,9 @@ In F<config.yaml>
 
   actions:
     ...
-    - diff
+    diff:
+      class: SVN::Web::Diff
     ...
-
-  diff_class: SVN::Web::Diff
 
 =head1 DESCRIPTION
 
@@ -40,6 +41,23 @@ The first revision of the file to compare.
 
 The second revision of the file to compare.
 
+=item revs
+
+A list of two or more revisions.  If present, the smallest number in
+the list is assigned to C<rev1> (overriding any given C<rev1> value) and the
+largest number in the list is assigned to C<rev2> (overriding any given 
+C<rev2> value).
+
+In other words:
+
+    ...?rev1=5;rev2=10
+
+is equal to:
+
+    ...?revs=10;revs=5
+
+This supports the "diff between arbitrary revisions" functionality.
+
 =item mime
 
 The desired output format.  The default is C<html> for an HTML, styled diff
@@ -55,22 +73,45 @@ default if not set.
 
 =head1 TEMPLATE VARIABLES
 
-None.  If C<mime> is C<html> then raw HTML is returned for immediate insertion
-in to the template.  If C<mime> is C<text> then the template is bypassed and
-plain text is returned.
+=over 8
+
+=item rev1
+
+The first revision of the file to compare.  Corresponds with the C<rev1>
+parameter, either set explicitly, or extracted from C<revs>.
+
+=item rev2
+
+The second revision of the file to compare.  Corresponds with the C<rev2>
+parameter, either set explicitly, or extracted from C<revs>.
+
+=back
+
+In addition, if C<mime> is C<html> then raw HTML is returned for
+immediate insertion in to the template.  If C<mime> is C<text> then
+the template is bypassed and plain text is returned.
 
 =head1 EXCEPTIONS
 
 =over 4
 
-=item C<path does not exist>
+=item (path %1 does not exist in revision %2)
 
-The file does not exist in C<rev1> of the repository.
+The given path is not present in the repository at the given revision.
 
-=item C<directory diff requires svk>
+=item (directory diff requires svk)
 
 Showing the difference between two directories needs the SVN::DiffEditor
 module.
+
+=item (two revisions must be provided)
+
+No revisions were given to diff against.
+
+=item (rev1 and rev2 must be different)
+
+Either only one revision number was given, or several were given, but
+they're the same number.
 
 =back
 
@@ -90,6 +131,25 @@ sub run {
     my $fs      = $self->{repos}->fs;
     my $rev1    = $self->{cgi}->param('rev1');
     my $rev2    = $self->{cgi}->param('rev2');
+    my @revs    = $self->{cgi}->param('revs');
+
+    if(@revs) {
+	$rev1 = min(@revs);
+	$rev2 = max(@revs);
+    }
+
+    SVN::Web::X->throw(error => '(two revisions must be provided)',
+		       vars  => [])
+	unless defined $rev1 and defined $rev2;
+
+    SVN::Web::X->throw(error => '(rev1 and rev2 must be different)',
+		       vars  => [])
+	if @revs and @revs < 2;
+
+    SVN::Web::X->throw(error => '(rev1 and rev2 must be different)',
+		       vars  => [])
+	if $rev1 == $rev2;
+
     my $mime    = $self->{cgi}->param('mime') || 'text/html';
     my $context = $self->{cgi}->param('context')
                   || $self->{config}->{diff_context};
@@ -98,12 +158,23 @@ sub run {
     my $root2 = $fs->revision_root ($rev2);
     my $kind = $root1->check_path ($self->{path});
 
-    die "path does not exist" if $kind == $SVN::Node::none;
+    if($kind == $SVN::Node::none) {
+	SVN::Web::X->throw(error => '(path %1 does not exist in revision %2)',
+			   vars => [$self->{path}, $rev1]);
+    }
+
+    $kind = $root2->check_path($self->{path});
+
+    if($kind == $SVN::Node::none) {
+	SVN::Web::X->throw(error => '(path %1 does not exist in revision %2)',
+			   vars => [$self->{path}, $rev2]);
+    }
 
     my $output;
 
     if ($kind == $SVN::Node::dir) {
-	die "directory diff requires svk"
+	SVN::Web::X->throw(error => '(directory diff requires svk)',
+			   vars => [])
 	    unless $has_svk;
 
 	my $path = $self->{path};
@@ -152,7 +223,9 @@ sub run {
 	$output =~ s/^\+ /<span class="diff-leader">+ <\/span>/mg;
 
 	return { template => 'diff',
-		 data => { body => $output }};
+		 data => { rev1 => $rev1,
+			   rev2 => $rev2,
+			   body => $output }};
     } else {
 	return { mimetype => $mime,
 		 body => $output };

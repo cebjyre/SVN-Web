@@ -48,7 +48,7 @@ msgid "Branch to:"
 msgstr "分支目的:"
 
 #: template/footer:1
-msgid "Powered by SVN::Web"
+msgid "(powered by)"
 msgstr "採用 SVN::Web 架設"
 
 #: template/browse:19

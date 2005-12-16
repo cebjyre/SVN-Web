@@ -20,16 +20,6 @@
 [% END %]
  - [% author %] - [% date %]<br/>
 
-[% WHILE branchpoints.size && branchpoints.first.srcrev >= rev %]
-[% b = branchpoints.shift %]
-branchpoint for
-[% IF isdir %]
-<a href="[% script %]/[% repos %]/browse[% b.dst %]?rev=[% b.dstrev %]">[% b.dst %]</a>:[% b.dstrev %]<br/>
-[% ELSE %]
-<a href="[% script %]/[% repos %]/log[% b.dst %]#rev[% b.dstrev %]">[% b.dst %]</a>:[% b.dstrev %]<br/>
-[% END %]
-
-[% END %]
 [% UNLESS isdir || loop.count == loop.size%]
 [% prev = loop.count %]
 [%|l%](diff with previous)[%END%]: <a href="[% script %]/[% repos %]/diff[% path %]?rev1=[% revs.$prev.rev %];rev2=[% rev %]">HTML</a> | <a href="[% script %]/[% repos %]/diff[% path %]?rev1=[% revs.$prev.rev %];rev2=[% rev %];mime=text/plain">TEXT</a><br/>

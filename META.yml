@@ -1,5 +1,5 @@
 name: SVN-Web
-version: 0.41
+version: 0.42
 abstract: Subversion repository web frontend
 author: Nik Clayton <nik@FreeBSD.org>
 license: perl
@@ -14,6 +14,8 @@ requires:
   Locale::Maketext::Lexicon: 0
   Locale::Maketext::Simple: 0
   URI: 0
+  Exception::Class: 0
+  List::Util: 0
 recommends:
   Template::Plugin::Clickable: 0
   Template::Plugin::Clickable::Email: 0
