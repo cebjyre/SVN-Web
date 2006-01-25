@@ -8,6 +8,43 @@ Notes on updating from previous versions of SVN::Web
 
 =head1 DESCRIPTION
 
+=head2 0.42 to 0.43
+
+=over 4
+
+=item
+
+The F<en.po> localisation file and F<diff> template have been changed to
+support viewing plain text diffs.  Either copy the supplied files over
+your copies, or merge the changes in by hand if you are using your own
+templates.
+
+The diff for these changes is at
+L<http://jc.ngo.org.uk/svnweb/jc/revision/?rev=719>.
+
+=item
+
+L<SVN::Web::Revision> has a new option controlling whether or not diffs
+are shown when viewing a revision.  To support it the F<revision> template
+has changed.  Either copy the supplied template over your copy, or merge
+the changes by hand if you are using your own template.
+
+The diff for this change is at
+L<http://jc.ngo.org.uk/svnweb/jc/revision?rev=721>.
+
+=item
+
+The templates F<trac/trac.css> and F<trac/code.css> have been changed
+to remove references to images that are not shipped in this distribution.
+This will stop web browsers requesting them, and keeps C<svnweb-server>
+quiet.  It's not essential that you update your copies accordingly, but
+it doesn't hurt either.
+
+The diff for this change is at
+L<http://jc.ngo.org.uk/svnweb/jc/revision?rev=764>.
+
+=back
+
 =head2 0.41 to 0.42
 
 =over 4

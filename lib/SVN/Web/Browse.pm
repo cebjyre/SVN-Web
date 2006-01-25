@@ -118,6 +118,7 @@ sub run {
 
     if ($self->{path} !~ m|/$|) {
         print $self->{cgi}->redirect(-uri => $self->{cgi}->self_url() . '/');
+	return;
     }
     my $path = $self->{path};
     $path =~ s|/$|| unless $path eq '/';

@@ -52,7 +52,7 @@ $mech->title_is ('Repository List (via SVN::Web)', "'list' has correct title");
 
 my %seen;
 
-diag "Recusrively checking all links";
+diag "Recursively checking all links";
 
 check_links();
 

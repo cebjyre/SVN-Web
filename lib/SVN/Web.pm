@@ -1,12 +1,11 @@
 # -*- Mode: cperl; cperl-indent-level: 4 -*-
 package SVN::Web;
 use strict;
-our $VERSION = '0.42';
+our $VERSION = '0.43';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
 use Template;
-use URI;
 use File::Spec::Unix;
 use SVN::Web::X;
 eval 'use FindBin';
@@ -31,26 +30,105 @@ SVN::Web - Subversion repository web frontend
 
 =head1 SYNOPSIS
 
-    > mkdir cgi-bin/svnweb
-    > cd cgi-bin/svnweb
-    > svnweb-install
+To get started with SVN::Web.
 
-Edit F<config.yaml> to set the source repository, then point your
-browser to C<index.cgi/I<repos>> to browse it.
+=over
 
-You will also need to make the svnweb directory writeable by the web
-server.
+=item 1.
+
+Create a directory for SVN::Web's configuration files, templates,
+stylesheets, and other data.
+
+  mkdir svnweb
+
+=item 2.
+
+Run C<svnweb-install> in this directory to configure the environment.
+
+  cd svnweb
+  svnweb-install
+
+=item 3.
+
+Edit the file F<config.yaml> that's been created, and add the following
+two lines:
+
+  repos:
+    test: '/path/to/repo'
+
+C</path/to/repo> should be the path to an existing Subversion repository
+on the local disk.
+
+=item 4.
+
+Either configure your web server (see L</"WEB SERVERS">) to use SVN::Web,
+or run C<svnweb-server> to start a simple web server for testing.
+
+  svnweb-server
+
+Note: C<svnweb-server> requires HTTP::Server::Simple to run, which is not
+a requirement of SVN::Web.  You may have to install HTTP::Server::Simple
+first.
+
+=item 5.
+
+Point your web browser at the correct URL to browse your repository.
+If you've run C<svnweb-server> then this is L<http://localhost:8080/>.
+
+=back
 
 See
-L<http://jc.ngo.org.uk/~nik/cgi-bin/svnweb/index.cgi/jc/browse/nik/CPAN/SVN-Web/trunk/>
+L<http://jc.ngo.org.uk/svnweb/jc/browse/nik/CPAN/SVN-Web/trunk/>
 for the SVN::Web source code, browsed using SVN::Web.
 
 =head1 DESCRIPTION
 
-SVN::Web provides a web interface to subversion repositories. You can
-browse the tree, view history of a directory or a file, see what's
-changed in a specific revision, track changes with RSS, and also view
-diff.
+SVN::Web provides a web interface to subversion repositories. With
+SVN::Web you can:
+
+=over
+
+=item *
+
+View multiple Subversion repositories.
+
+=item *
+
+Browse every revision of the repository.
+
+=item *
+
+View the contents of files in the repository at any revision.
+
+=item *
+
+View diffs of arbitrary revisions of any file.  Diffs can be viewed
+as plain unified diffs, or HTML diffs that use colour to more easily
+show what's changed.
+
+=item *
+
+View the revision log of files and directories, see what was changed
+when, by who.
+
+=item *
+
+View everything that was changed in a revision, and step through revisions
+one at a time, viewing the history of the repository.
+
+=item *
+
+As L<SVK> repositories are also Subversion repositories, you can do all of
+the above with those too.
+
+=back
+
+SVN::Web's interface is templated and fully localised, making it easy to
+change the look and feel to support your own preferences.  Translation to
+other languages involves editing one file.
+
+Additional actions can easily be added to the base set supported by the
+core of SVN::Web.
 
 =head1 CONFIGURATION
 
@@ -125,6 +203,29 @@ C<templatedirs> so their templates are found.
 
 For more information about writing your own templates see
 L</"ACTIONS, SUBCLASSES, AND URLS">.
+
+=head2 Template cache
+
+Template Toolkit can cache the results of template processing to make
+future processing faster.
+
+By default the cache is not enabled.  Use C<tt_compile_dir> to enable it.
+Set this directive to the name of a directory where the UID that SVN::Web is
+being run as can create files.
+
+For example:
+
+   tt_compile_dir: /var/tmp/tt-cache
+
+A literal C<.> and the UID of the process running SVN::Web will be appended
+to this string to generate the final directory name.  For example, if
+SVN::Web is being run under UID 80 then the final directory name is
+F</var/tmp/tt-cache.80>.  Since the cached templates are always created
+with mode 0600 this ensures that different users running SVN::Web can not
+overwrite one another's cached templates.
+
+This directive has no default value.  If it is not defined then no caching
+will take place.
 
 =head2 Log message filters
 
@@ -212,7 +313,8 @@ You can write your own plugins to recognise certain information in your
 local log messages and automatically turn them in to links.  For example,
 if you have a web-based issue tracking system, you might write a plugin
 that recognises text of the form C<t#1234> and turns it in to a link to
-ticket #1234 in your ticketing system.
+ticket #1234 in your ticketing system.  L<Template::Plugin::Subst> might
+be helpful if you do this.
 
 =head2 Actions, action classes, and action options
 
@@ -269,13 +371,13 @@ flag that you can enable globally.  That would be configured like so:
     ...
 
 The documentation for each action should explain in more detail how it
-should be configured.  See L<SVN::Web::action> for more information 
+should be configured.  See L<SVN::Web::action> for more information
 about writing actions.
 
 If an action is listed in C<actions> and there is no corresponding
 C<class> directive then SVN::Web takes the action name, converts the
 first character to uppercase, and then looks for an
-C<<SVN::Web::<Action> >> package.
+C<< SVN::Web::<Action> >> package.
 
 =head2 CGI class
 
@@ -365,20 +467,70 @@ See the documentation for each of these modules for more information
 about the data that they provide to each template, and for information
 about customising the templates used for each module.
 
-=over 4
+=head1 WEB SERVERS
 
-=head1 MOD_PERL
+Here is some information on configuring common webservers to run SVN::Web.
+In all cases, C</path/to/svnweb> in the examples is the directory you ran
+C<svnweb-install> in, and contains F<config.yaml>.
+
+If you've configured a web server that isn't listed here for SVN::Web,
+please send in the instructions so they can be included in a future
+release.
+
+=head2 svnweb-server
+
+C<svnweb-server> is a simple web server that runs SVN::Web, and is
+included and installed by this module.  It may be all you need to
+productively use SVN::Web without needing to install a larger server.
+To use it, run:
+
+  svnweb-server --root /path/to/svnweb
+
+See C<perldoc svnweb-server> for details about additional options you can
+use.
+
+=head2 Apache as CGI
+
+Apache must be configured to support CGI scripts in the directory in which
+you ran C<svnweb-install>
+
+  <Directory /path/to/svnweb>
+    Options All ExecCGI
+  </Directory>
+
+If F</path/to/svnweb> is not under your normal Apache web hosting root then
+you will need to alias a URL to that path too.
+
+  Alias /svnweb /path/to/svnweb
+
+With that configuration the full path to browse the repository would be:
+
+  http://server/svnweb/index.cgi
+
+=head2 Apache with mod_perl
 
 You can enable mod_perl support of SVN::Web with the following in the
 apache configuration:
 
-    Alias /svnweb /path/to/svnweb
-    <Directory /path/to/svnweb/>
+    <Directory /path/to/svnweb>
       AllowOverride None
       Options None
       SetHandler perl-script
       PerlHandler SVN::Web
     </Directory>
+
+    <Directory /path/to/svnweb/css>
+      SetHandler default-handler
+    </Directory>
+
+If F</path/to/svnweb> is not under your normal Apache web hosting root then
+you will need to alias a URL to that path too.
+
+  Alias /svnweb /path/to/svnweb
+
+With that configuration the full path to browse the repository would be:
+
+  http://server/svnweb/
 
 =cut
 
@@ -407,6 +559,17 @@ sub load_config {
     # If they're both set then throw an error
     if(exists $config->{templatedir} and exists $config->{templatedirs}) {
         die "templatedir and templatedirs both defined in config.yaml";
+    }
+
+    # Handle tt_compile_dir.  If it doesn't exist then set it to undef.
+    # If it does exist, and is defined, append a '.' and the current
+    # real UID, to help ensure uniqueness.
+    if(! exists $config->{tt_compile_dir}) {
+	$config->{tt_compile_dir} = undef; # undef == no compiling
+    } else {
+	if(defined $config->{tt_compile_dir}) {
+	    $config->{tt_compile_dir} .= '.' . $<;
+	}
     }
 
     return;
@@ -595,6 +758,7 @@ sub get_template {
     Template->new ({ INCLUDE_PATH => $config->{templatedirs},
 		     PRE_PROCESS => 'header',
 		     POST_PROCESS => 'footer',
+		     COMPILE_DIR => $config->{tt_compile_dir},
 		     FILTERS => { l => ([\&loc_filter, 1]),
 				  log_msg => \&log_msg_filter, } });
 }
@@ -616,7 +780,7 @@ sub run_cgi {
 	    $action ||= 'browse';
 	    $path ||= '';
 
-	    my $base_uri = URI->new($cgi->url())->as_string();
+	    my $base_uri = $ENV{SCRIPT_NAME};
 	    $base_uri =~ s{/index.cgi}{};
 
 	    $cfg = { repos => $repos,
@@ -735,6 +899,7 @@ sub handler {
 		 script => $script,
 		 path => "/$path",
 		 request => $r,
+		 base_uri => $script,
 		 style => $config->{style},
 		 cgi => ref($r) eq 'Apache::Request' ? $r : CGI->new(),
 		 opts => exists $config->{actions}{$action}{opts} ?
@@ -761,7 +926,7 @@ sub handler {
 
 =head1 SEE ALSO
 
-L<SVN::Web::action>
+L<SVN::Web::action>, svnweb-install(1)
 
 =head1 BUGS
 
@@ -781,7 +946,7 @@ Nik Clayton C<< <nik@FreeBSD.org> >>
 
 Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
 
-Copyright 2005 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+Copyright 2005-2006 by Nik Clayton C<< <nik@FreeBSD.org> >>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

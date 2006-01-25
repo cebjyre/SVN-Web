@@ -41,7 +41,7 @@ h4 :link, h4 :visited, h5 :link, h5 :visited, h6 :link, h6 :visited {
  color: inherit;
 }
 
-.ext-link { background: url(../extlink.gif) no-repeat 0 58%; padding-left: 16px }
+.ext-link { background: no-repeat 0 58%; padding-left: 16px }
 * html .ext-link { background-position: 0 .35em } /* IE hack, see #937 */
 
 /* Forms */
@@ -105,7 +105,7 @@ label.disabled { color: #d7d7d7 }
 
 /* Main navigation bar */
 #mainnav {
- background: #f7f7f7 url(../topbar_gradient.png) 0 0;
+ background: #f7f7f7 0 0;
  border: 1px solid #000;
  font: normal 10px verdana,'Bitstream Vera Sans',helvetica,arial,sans-serif;
  margin: .66em 0 .33em;
@@ -113,7 +113,7 @@ label.disabled { color: #d7d7d7 }
 }
 #mainnav li { border-right: none; padding: .25em 0 }
 #mainnav :link, #mainnav :visited {
- background: url(../dots.gif) 0 0 no-repeat;
+ background: 0 0 no-repeat;
  border-right: 1px solid #fff;
  border-bottom: none;
  border-left: 1px solid #555;
@@ -126,7 +126,7 @@ label.disabled { color: #d7d7d7 }
  border-right: 1px solid #ddd;
 }
 #mainnav .active:link, #mainnav .active:visited {
- background: #333 url(../topbar_gradient2.png) 0 0 repeat-x;
+ background: #333 0 0 repeat-x;
  border-top: none;
  border-right: 1px solid #000;
  color: #eee;
@@ -171,8 +171,8 @@ label.disabled { color: #d7d7d7 }
  background-repeat: no-repeat;
  border: none;
 }
-#altlinks li a.ics { background-image: url(../ics.png); padding-left: 22px }
-#altlinks li a.rss { background-image: url(../xml.png); padding-left: 42px }
+#altlinks li a.ics { padding-left: 22px }
+#altlinks li a.rss { padding-left: 42px }
 
 /* Footer */
 #footer {
@@ -247,7 +247,7 @@ a.missing:hover { color: #000; }
  height: 18px;
 }
 .wikitoolbar :link, .wikitoolbar :visited {
- background: transparent url(../edit_toolbar.png) no-repeat;
+ background: transparent no-repeat;
  border: 1px solid #fff;
  border-left-color: #d7d7d7;
  cursor: default;
@@ -303,8 +303,8 @@ table.listing th.asc a, table.listing th.desc a {
  background-position: 100% 50%;
  background-repeat: no-repeat;
 }
-table.listing th.asc a { background-image: url(../asc.png) }
-table.listing th.desc a { background-image: url(../desc.png) }
+table.listing th.asc a { }
+table.listing th.desc a { }
 table.listing tbody td, table.listing tbody th {
  border: 1px dotted #ddd;
  padding: .33em .5em;

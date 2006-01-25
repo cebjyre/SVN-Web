@@ -264,3 +264,6 @@ msgstr "The configuration file contains <tt>templatedir</tt> and a "
 "\n"
 "You probably need to remove the <tt>templatedir</tt> directive, and "
 "include its value in the <tt>templatedirs</tt> directive."
+
+msgid "(view plain text)"
+msgstr "View Plain Text"

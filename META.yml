@@ -1,26 +1,55 @@
+---
 name: SVN-Web
-version: 0.42
+version: 0.43
+author:
+  - 'Nik Clayton <nik@FreeBSD.org>'
 abstract: Subversion repository web frontend
-author: Nik Clayton <nik@FreeBSD.org>
 license: perl
-distribution_type: module
+resources:
+  license: http://dev.perl.org/licenses/
 requires:
-  Template: 0
-  YAML: 0
-  XML::RSS: 0
-  Text::Diff: 0
-  Text::Diff::HTML: 0
-  Template::Plugin::Number::Format: 0
+  Exception::Class: 1.22
+  List::Util: 0
   Locale::Maketext::Lexicon: 0
   Locale::Maketext::Simple: 0
-  URI: 0
-  Exception::Class: 0
-  List::Util: 0
+  Template: 0
+  Template::Plugin::Number::Format: 0
+  Text::Diff: 0
+  Text::Diff::HTML: 0
+  XML::RSS: 0
+  YAML: 0
 recommends:
+  HTTP::Server::Simple: 0
   Template::Plugin::Clickable: 0
   Template::Plugin::Clickable::Email: 0
   Template::Plugin::Subst: 0
-no_index:
-  directory:
-    - inc
-generated_by: Module::Install version 0.39
+provides:
+  SVN::Web:
+    file: lib/SVN/Web.pm
+    version: 0.43
+  SVN::Web::Browse:
+    file: lib/SVN/Web/Browse.pm
+  SVN::Web::Checkout:
+    file: lib/SVN/Web/Checkout.pm
+  SVN::Web::Diff:
+    file: lib/SVN/Web/Diff.pm
+  SVN::Web::List:
+    file: lib/SVN/Web/List.pm
+  SVN::Web::Log:
+    file: lib/SVN/Web/Log.pm
+  SVN::Web::RSS:
+    file: lib/SVN/Web/RSS.pm
+  SVN::Web::Revision:
+    file: lib/SVN/Web/Revision.pm
+  SVN::Web::Test:
+    file: lib/SVN/Web/Test.pm
+  SVN::Web::View:
+    file: lib/SVN/Web/View.pm
+  SVN::Web::X:
+    file: lib/SVN/Web/X.pm
+  SVN::Web::action:
+    file: lib/SVN/Web/action.pm
+generated_by: Module::Build version 0.2706
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

@@ -5,7 +5,7 @@
  overflow: auto
 }
 .image-file { background: #eee; padding: .3em }
-.image-file img { background: url(../imggrid.png) }
+.image-file img { }
 
 /* Default */
 .css_default, .c_default, .code_default, .pl_default, .p_default, 

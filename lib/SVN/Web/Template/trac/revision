@@ -58,7 +58,7 @@
           [% path.key %]
         [% ELSE %]
           <a href="[% script %]/[% repos %]/view[% path.key %]?rev=[% rev %]">[% path.key %]</a>
-          [% IF path.value.action == 'M' %]
+          [% IF path.value.action == 'M' AND path.value.diff %]
             (<a href="#diff_[% path.key.replace('/', '_') | uri | html %]">[%|l%](diff)[%END%]</a>)
           [% END %]
           [% IF path.value.action == 'A' %]

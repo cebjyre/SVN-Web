@@ -14,31 +14,34 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 0c8a8c69ece5bad9d297396595b510d5228d5875 CHANGES.pod
+SHA1 f11c05fd3e7e68e91f8023ba7cd53f11a45af39e Build.PL
+SHA1 1cb362ea1b157d304fa01cd93c9904518a104049 CHANGES.pod
 SHA1 f97620009cb9b45faf2e7bc41d341b8af4e8a8f4 CONTRIBUTING.pod
-SHA1 524288bd463a65196c2968df5d76ca9f086e1fe3 MANIFEST
-SHA1 534ccb892a2ba3d86152971038edc0e3789c75aa Makefile.PL
-SHA1 c95b057f2fc7714501a32ae68ea700d68ef6225a README
+SHA1 e6799a5319c9fe6a4b9f90679c8bedea08a06919 MANIFEST
+SHA1 ffefacbb65fb041aff2d78607b81e5c6c45a5fac META.yml
+SHA1 db02d6f040a8caa90198fd9b50c14323956bb14f Makefile.PL
+SHA1 6bc2dc228616c409da1587916fba1f2696913299 README
 SHA1 62a73f8f454d7ab7d109f9fa935ae05e91a26fce TODO
-SHA1 31c4b462a0157b6216795269136735e83f0d9219 UPDATING.pod
-SHA1 871c0b123a9c8568af40f019a70860b007783b80 bin/svnweb-install
-SHA1 705de6f2df0ed35138b7e7c83a2d4e5758ad5d6b lib/SVN/Web.pm
-SHA1 ee0ccd5d08c25588458159e0ad3fcfb651c081cd lib/SVN/Web/Browse.pm
+SHA1 c52836e7f77ade8448b3a78e51a218e0abc3775a UPDATING.pod
+SHA1 c9a9ab846f365067175fb90830ad5bb9322a7ef3 bin/svnweb-install
+SHA1 dbd93ac80bd1df7724ef9b7895defc0e4dc7b8c1 bin/svnweb-server
+SHA1 8c2d333d4aaf5b17b5c29802097263af4af633ef lib/SVN/Web.pm
+SHA1 134eb686f834e2785fc6079a0689375891f41bb1 lib/SVN/Web/Browse.pm
 SHA1 583e7ef82708474fac3cfb6072bf9227cc804b3a lib/SVN/Web/Checkout.pm
 SHA1 414b9a2af4c36e3b58e3d3183c54f1ffe79ac44e lib/SVN/Web/Diff.pm
-SHA1 55f007daa238f5eefa5b40c16d47c357d3a17363 lib/SVN/Web/I18N/en.po
+SHA1 d1fcaa2ab81da8b69e83aae945b8a17cba5ce247 lib/SVN/Web/I18N/en.po
 SHA1 744d1823a53243fe52ff7d66958479e5db413a91 lib/SVN/Web/I18N/fr.po
 SHA1 149b3a8273f2f4dcf1f424258de39c09f76816bb lib/SVN/Web/I18N/zh_cn.po
 SHA1 8274a5efef8210902776180aa94f1cf5dfbfe67c lib/SVN/Web/I18N/zh_tw.po
 SHA1 7fefed7d4ef7b9d6d452c89ed5324cff81f419b8 lib/SVN/Web/List.pm
 SHA1 0f8ac3769c357f501a28ab84f85377cd9ac31623 lib/SVN/Web/Log.pm
 SHA1 d6e3b8b443c69f0808129fa103f25675741cc9aa lib/SVN/Web/RSS.pm
-SHA1 407ebd3cacac45d18e2a4d9706954efb14b47130 lib/SVN/Web/Revision.pm
+SHA1 f47478fb1a7972ebf51149ef1f6265644e007f18 lib/SVN/Web/Revision.pm
 SHA1 4e09f47629601557603649a131fb7e259abe7a8c lib/SVN/Web/Style/common.css
 SHA1 c7f365aa5f266c338dcf72609844b7b35e07a024 lib/SVN/Web/Style/styles-hlb.css
 SHA1 6891d1579047594f0600adcb5ba039a73a755077 lib/SVN/Web/Style/trac/browser.css
 SHA1 aa619eeb97d689b527e992003995b66f1e21e410 lib/SVN/Web/Style/trac/changeset.css
-SHA1 d3d55f7a1f81333965827afea868069c09f7ef4f lib/SVN/Web/Style/trac/code.css
+SHA1 ce9d49ee72dae44293efc607344b92f51bb7fc67 lib/SVN/Web/Style/trac/code.css
 SHA1 69333e899b14209268572ab6ec59549c1c1d3e6b lib/SVN/Web/Style/trac/diff.css
 SHA1 9dd0a6187297068b664beb63e21594c1a0b2bc62 lib/SVN/Web/Style/trac/file.png
 SHA1 9dd0a6187297068b664beb63e21594c1a0b2bc62 lib/SVN/Web/Style/trac/filedeny.png
@@ -47,23 +50,23 @@ SHA1 4893f3bba7bd4748784c31d55f9d7a1391d119ed lib/SVN/Web/Style/trac/folderdeny.
 SHA1 1aa6724736aba1edc7862be3f2fcce09ae399031 lib/SVN/Web/Style/trac/parent.png
 SHA1 1e99ddccd86005251523f31c6f857609d2093109 lib/SVN/Web/Style/trac/svnweb.css
 SHA1 4623cb93b8677e5362a0956e4c96a294a74f72e2 lib/SVN/Web/Style/trac/text-diff-html.css
-SHA1 cacf9d14d1fd2d77c20fa17a954bd48b63c0e6af lib/SVN/Web/Style/trac/trac.css
+SHA1 ab17e64c0764d55acb26d120348a9f0a956eca7b lib/SVN/Web/Style/trac/trac.css
 SHA1 1cd2a07c6228145c475dc4b26543330fd6ea289c lib/SVN/Web/Template/plain/browse
 SHA1 688dbac49cf965e5d5661804872ba6fb5dbaf1f2 lib/SVN/Web/Template/plain/diff
 SHA1 b7fa80002592240d66801fca04ae83604dc01b3c lib/SVN/Web/Template/plain/footer
 SHA1 50916a335d7a2826fde6ac142920134bc3b6c8f8 lib/SVN/Web/Template/plain/header
 SHA1 5da68420974ac06fa09864de00064a8c8d9fae25 lib/SVN/Web/Template/plain/list
 SHA1 4d9a90b287fbf6f0ee81f5b2b465d27f6799a42f lib/SVN/Web/Template/plain/log
-SHA1 1d9ad124631033b4038fd3b37c61c4ae3a793f33 lib/SVN/Web/Template/plain/revision
+SHA1 c6d768f2a116c3fef0fe3a68eecac4848a0eeeff lib/SVN/Web/Template/plain/revision
 SHA1 4c4c53cf4f6de47a58d87a6a53b6bec63cb4a164 lib/SVN/Web/Template/plain/view
 SHA1 ea06eb2538a68c0137ccf3b4e768d533b5335d7e lib/SVN/Web/Template/plain/x
 SHA1 80983c4a72753f8f5352e74ddfae396d9422c824 lib/SVN/Web/Template/trac/browse
-SHA1 e83bd4e9a109b4b38788f26dfb5e0533ad99d215 lib/SVN/Web/Template/trac/diff
+SHA1 6e89ba5fd6db84b8064c7616c969308b867dc749 lib/SVN/Web/Template/trac/diff
 SHA1 23235e661f39c862739818ff05741c3b362a67f6 lib/SVN/Web/Template/trac/footer
 SHA1 616c8caa03254f9cd85f6a001cb49f35a9c6f0ef lib/SVN/Web/Template/trac/header
 SHA1 62ec5dc44d2f422c065288eff7aa17975cf5033f lib/SVN/Web/Template/trac/list
 SHA1 bc0b21e26fb04e84679cbb0296372a0ed5149a95 lib/SVN/Web/Template/trac/log
-SHA1 6cfc9d7521252d1c08f2180b25981735b460f7ae lib/SVN/Web/Template/trac/revision
+SHA1 8e01e976f7d5b50851f162a569d53e5d3d566127 lib/SVN/Web/Template/trac/revision
 SHA1 4af30fa9ed6c3bb39d74e01f43fc177dc6ff4718 lib/SVN/Web/Template/trac/view
 SHA1 ea06eb2538a68c0137ccf3b4e768d533b5335d7e lib/SVN/Web/Template/trac/x
 SHA1 a04509d1d971588988d3ecd57ad4e7de55b292d8 lib/SVN/Web/Test.pm
@@ -71,5 +74,13 @@ SHA1 9c91d6d9d0304a0af0fb7743a923dcb56be7d5e6 lib/SVN/Web/View.pm
 SHA1 6796eddb16bc1baa6b9e2b41c795d52c1bcfad84 lib/SVN/Web/X.pm
 SHA1 c39773a5f1c8b7955592e6b47bcb3ef29a9b32a0 lib/SVN/Web/action.pm
 SHA1 8efe12f9cbafef71f8a02ad7b3fb268a6a839574 t/1use.t
-SHA1 dfcaa3472e0876d85d6b8db74eab118779933087 t/2basic.t
+SHA1 f709108e624000ff6f5587646c650fa0c77e8401 t/2basic.t
+SHA1 21a5d04354b7d73dd7b3fcd5c36320e46a7682c8 t/3svnweb-install.t
 SHA1 650a2aac7b0dbfc390f8e10eb7a646f890108968 t/test_repo.dump
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.2 (FreeBSD)
+
+iD8DBQFD2AAtk6gHZCw343URAtVkAJ4zBgPK7AbE7Pa0UStZ2P03WOO/qACaA13F
+sjHNoQ3hzkNlfKVsaiwmy0Y=
+=UfQ0
+-----END PGP SIGNATURE-----

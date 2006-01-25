@@ -1,18 +1,7 @@
 bin/svnweb-install
+bin/svnweb-server
 CHANGES.pod
 CONTRIBUTING.pod
-inc/ExtUtils/AutoInstall.pm
-inc/Module/Install.pm
-inc/Module/Install/AutoInstall.pm
-inc/Module/Install/Base.pm
-inc/Module/Install/Can.pm
-inc/Module/Install/Fetch.pm
-inc/Module/Install/Include.pm
-inc/Module/Install/Makefile.pm
-inc/Module/Install/Metadata.pm
-inc/Module/Install/Scripts.pm
-inc/Module/Install/Win32.pm
-inc/Module/Install/WriteAll.pm
 lib/SVN/Web.pm
 lib/SVN/Web/action.pm
 lib/SVN/Web/Browse.pm
@@ -62,12 +51,15 @@ lib/SVN/Web/Test.pm
 lib/SVN/Web/View.pm
 lib/SVN/Web/X.pm
 Makefile.PL
+Build.PL
 MANIFEST			This list of files
 META.yml
 README
 SIGNATURE
 t/1use.t
 t/2basic.t
+t/3svnweb-install.t
 t/test_repo.dump
 TODO
 UPDATING.pod
+SIGNATURE    Added here by Module::Build

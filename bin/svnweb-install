@@ -1,19 +1,26 @@
 #!/usr/bin/perl
 use strict;
-use SVN::Web;
 use Config;
 use File::Copy;
 use File::Basename;
 use File::Find;
 
+BEGIN {
+    # This is a nasty hack.  SVN::Core has a bug.  "perl -MSVN::Core -c -e 1"
+    # will dump core.  Something to do with the interaction between "-c"
+    # running BEGIN blocks but not running END blocks, or similar.
+    #
+    # Anyway, we want to test to make sure this script compiles cleanly.
+    # And we want to use SVN::Web.  Since the two are mutually exclusive,
+    # only use SVN::Web (and hence SVN::Core) if we're not compiling.
+    if(! $^C) {
+        require SVN::Web;
+    }
+}
+
 die "already have config.yaml" if -e 'config.yaml';
 
 open my $fh, ">config.yaml";
-for (@SVN::Web::PLUGINS) {
-    my $module = $_;
-    s/^(\w)/\U$1/;
-    print $fh lc(${module}).'_class:'.(' 'x(20-(length $_)))."SVN::Web::$_\n";
-}
 
 my %targets = (
     Template => 'template',
@@ -50,7 +57,7 @@ actions:
     class: SVN::Web::List
   log:
     class: SVN::Web::Log
-  revision
+  revision:
     class: SVN::Web::Revision
   rss:
     class: SVN::Web::RSS

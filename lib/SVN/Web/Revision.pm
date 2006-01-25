@@ -18,11 +18,28 @@ In F<config.yaml>
     ...
     revision:
       class: SVN::Web::Revision
+      opts:
+        show_diff: 1 # or 0
     ...
 
 =head1 DESCRIPTION
 
 Shows information about a specific revision in a Subversion repository.
+
+=head1 CONFIGURATION
+
+The following configuration options may be specified in F<config.yaml>.
+
+=over
+
+=item show_diff
+
+Boolean indicating whether or not a diff of every file that was changed
+in the revision should be shown.
+
+Defaults to 1.
+
+=back
 
 =head1 OPTIONS
 
@@ -126,6 +143,8 @@ The C<rev> parameter was not given.
 
 =cut
 
+my %default_opts = (show_diff => 1);
+
 sub new {
     my $class = shift;
     my $self = bless {}, $class;
@@ -154,18 +173,34 @@ sub _log {
 
 sub run {
     my $self    = shift;
+
+    $self->{opts} = { %default_opts, %{$self->{opts}} };
+
     my $pool    = SVN::Pool->new_default_sub;
     my $rev     = $self->{cgi}->param('rev') || 
       SVN::Web::X->throw(error => '(no revision)',
 			 vars => []);
 
-    my $context = $self->{cgi}->param('context')
-                  || $self->{config}->{diff_context};
-
     $self->{repos}->get_logs (['/'], $rev, $rev, 1, 0,
 			      sub { $self->{REV} = $self->_log(@_)});
 
     my $fs = $self->{repos}->fs();
+
+    $self->make_diffs($rev) if $self->{opts}{show_diff};
+
+    return {template => 'revision',
+	    data => { rev => $rev,
+		      youngest_rev => $fs->youngest_rev(),
+		      %{$self->{REV}}}};
+}
+
+sub make_diffs {
+    my $self = shift;
+    my $rev  = shift;
+
+    my $fs = $self->{repos}->fs();
+    my $context = $self->{cgi}->param('context')
+      || $self->{config}->{diff_context};
 
     # Generate the diffs for each file
     foreach my $path (keys %{$self->{REV}->{paths}}) {
@@ -222,11 +257,6 @@ sub run {
 	$self->{REV}->{paths}{$path}{diff} =~ s/^\+ /<span class="diff-leader">+ <\/span>/mg;
       }
     }
-
-    return {template => 'revision',
-	    data => { rev => $rev,
-		      youngest_rev => $fs->youngest_rev(),
-		      %{$self->{REV}}}};
 }
 
 1;
