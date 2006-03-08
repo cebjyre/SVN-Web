@@ -8,6 +8,66 @@ Notes on updating from previous versions of SVN::Web
 
 =head1 DESCRIPTION
 
+=head2 0.43 to 0.44
+
+If you have not modified the supplied templates and localisation files
+the update can be carried out by:
+
+=over 4
+
+=item 1.
+
+Backing up your existing F<config.yaml> file.
+
+=item 2.
+
+Removing all the files in your current C<svnweb> directory.
+
+=item 3.
+
+Running C<svnweb-install> from this distribution.  This will copy the new
+templates and localisation files, as well as creating a new F<config.yaml>.
+
+=item 4.
+
+Restoring the F<config.yaml> that you backed up in step 1.
+
+=back
+
+If you have made local modifications then the following information should
+help you merge the changes in this version in to your modified files.
+
+=over 4
+
+=item
+
+The F<trac/log> template has been changed to remove some output from
+comments.  Although this output was never seen, generating it used CPU
+and memory.  This was especially apparent on changes that affected
+many files.  Using the new F<trac/log> template (or merging the change
+in by hand) will speed up log browsing.
+
+The diff for these changes is at
+L<http://jc.ngo.org.uk/svnweb/jc/revision/?rev=793>.
+
+=item
+
+F<I18N/en.po> has been updated with a new error message when an invalid
+revision number is specified.
+
+The diff for these changes is at
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/I18N/en.po?revs=794&revs=788>.
+
+=item
+
+F<I18N/en.po> and F<trac/browse> have been updated to show a file's age,
+relative to the last commit that affected it.
+
+The diffs for these changes are at L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/I18N/en.po?revs=788&revs=719>
+and L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/browse?revs=788&revs=553>.
+
+=back
+
 =head2 0.42 to 0.43
 
 =over 4

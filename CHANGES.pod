@@ -8,6 +8,62 @@ Changes between SVN::Web versions.
 
 =head1 DESCRIPTION
 
+=head2 0.44, released Mar 8, 2006
+
+=over
+
+=item
+
+When browsing the repository the F<trac> templates now include age
+of the file, expressed as {seconds, minutes, hours, days, weeks,
+months, years} since the file was last modified.
+
+=item
+
+The C<revision>, C<log>, C<view>, and C<rss> actions are much more 
+conservative with memory when processing commits that changed a large 
+number of files.  Fixes rt#17359, reported by Dietrich Streifert
+<dietrich.streifert@visionet.de>.
+
+=item
+
+Included support for running under mod_perl2 as well as mod_perl1.  Fixes
+rt#17085 and rt#17350.  Based on a patch from Garrison Hoffman
+<garrison@codefix.net>.
+
+=item
+
+Fixed a bug when running under mod_perl -- the HTTP headers were not
+being sent.  Some browsers could cope with this, others just displayed
+the raw HTML.  Reported by Dominic Mitchell <dom@happygiraffe.net>.
+
+=item
+
+Entering a revision number that does not exist will now generate a
+localised error message.  Fixes rt#17822, reported by 
+<gk5885@kickstyle.net>
+
+=item
+
+The L<SVN::Web::Revision> action will now not show diffs between
+file revisions if either revision of the file has a non-text MIME type.
+Fixes rt#17625, reported by Mike Ellery <mikee@s2technologies.com>.
+
+=item
+
+Fixed some bugs in C<svnweb-server>.  Option parsing works properly,
+fixing rt#17347 (reported by <miyagawa@cpan.org>) and the
+C<--net-server> option is now honoured.
+
+=item
+
+C<svnweb-install> should now work if any directories in the install path
+contain regexp metacharacters in the filename.  Fixes rt#17282, reported by
+<CORION@cpan.org>.  It also emits warnings if copying files or making
+directories during the install process fails, fixing rt#17283.
+
+=back
+
 =head2 0.43, released Jan 25, 2006
 
 =over

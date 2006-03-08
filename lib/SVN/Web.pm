@@ -1,7 +1,7 @@
 # -*- Mode: cperl; cperl-indent-level: 4 -*-
 package SVN::Web;
 use strict;
-our $VERSION = '0.43';
+our $VERSION = '0.44';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
@@ -21,8 +21,6 @@ use Locale::Maketext::Simple (
     Decode => 0,
 );
 }
-
-require CGI;
 
 =head1 NAME
 
@@ -381,14 +379,13 @@ C<< SVN::Web::<Action> >> package.
 
 =head2 CGI class
 
-SVN::Web can use a custom CGI class.  By default SVN::Web will use CGI::Fast
-if it is installed, and fallback to using CGI otherwise.
+SVN::Web can use a custom CGI class.  By default SVN::Web will use
+L<CGI::Fast> if it is installed, and fallback to using L<CGI> otherwise.
 
-If you have your own CGI subclass you can specify it here.
+Of course, if you have your own class that implements the CGI interface
+you may specify it here too.
 
-   cgi_class: 'My::CGI::Subclass'
-
-This option is somewhat specialised.
+  cgi_class: 'My::CGI::Subclass'
 
 =head1 ACTIONS, SUBCLASSES, AND URLS
 
@@ -507,10 +504,10 @@ With that configuration the full path to browse the repository would be:
 
   http://server/svnweb/index.cgi
 
-=head2 Apache with mod_perl
+=head2 Apache with mod_perl or mod_perl2
 
-You can enable mod_perl support of SVN::Web with the following in the
-apache configuration:
+You can use mod_perl or mod_perl2 with SVN::Web.  The following Apache
+configuration is suitable.
 
     <Directory /path/to/svnweb>
       AllowOverride None
@@ -695,6 +692,7 @@ sub run {
     loc_lang($cfg->{lang} ? $cfg->{lang} : ());
     $html = $obj->run();
 
+    $pool->clear;
     return $html;
 }
 
@@ -733,6 +731,8 @@ sub mod_perl_output {
         $content_type .= $html->{charset} || 'UTF-8';
 	$cfg->{request}->content_type($content_type);
 
+	$cfg->{request}->send_http_header();
+
 	if ($html->{template}) {
 	    $template ||= get_template ();
 	    $template->process ($html->{template},
@@ -748,6 +748,7 @@ sub mod_perl_output {
     else {
 	$cfg->{request}->content_type('text/html; charset=UTF-8');
 
+	$cfg->{request}->send_http_header();
 	$cfg->{request}->print($html);
     }
 }
@@ -766,11 +767,51 @@ sub get_template {
 sub run_cgi {
     die $@ if $@;
     $pool ||= SVN::Pool->new_default;
-    load_config ('config.yaml');
+    load_config('config.yaml');
     $template ||= get_template ();
     $config->{diff_context} ||= 3;
 
-    my $cgi_class = $config->{cgi_class} || (eval { require CGI::Fast; 1 } ? 'CGI::Fast' : 'CGI');
+    # Pull in the configured CGI class.  Propogate any errors back, and
+    # call the correct import() routine.
+    #
+    # This is more complicated than it should be.  If $config->{cgi_class}
+    # is defined then use that.  If not, use CGI::Fast.  If that can't be
+    # loaded then use CGI.
+    #
+    # There's a problem with (at least) CGI::Fast.  It's possible for the
+    # require() to fail, but for CGI::Fast's entry in %INC to be populated.
+    # This seems to happen when CGI::Fast loads, but its dependency (such
+    # as FCGI) fails to load.  So if the require() fails for any reason
+    # we explicitly remove the %INC entry.
+
+    my $cgi_class;
+    my $eval_result;
+
+    if(exists $config->{cgi_class}) {
+	$eval_result = eval "require $config->{cgi_class}";
+	die $@ if $@;
+	$cgi_class = $config->{cgi_class};
+    } else {
+	foreach ('CGI::Fast', 'CGI') {
+	    $eval_result = eval "require $_";
+	    if($@) {
+		my $path = $_;
+		$path =~ s{::}{/}g;
+		$path .= '.pm';
+		delete $INC{$path};
+	    } else {
+		$cgi_class = $_;
+		last;
+	    }
+	}
+    }
+
+    die "Could not load a CGI class" unless $eval_result;
+    $cgi_class->import();
+
+    # Save the selected module so that future calls to this routine
+    # don't waste time trying to find the correct class.
+    $config->{cgi_class} = $cgi_class unless exists $config->{cgi_class};
 
     while (my $cgi = $cgi_class->new) {
 	my($html, $cfg);
@@ -860,15 +901,29 @@ sub log_msg_filter {
 }
 
 sub handler {
-    eval "
-	use Apache::RequestRec ();
-	use Apache::RequestUtil ();
-	use Apache::RequestIO ();
-	use Apache::Response ();
-	use Apache::Const;
-	use Apache::Constants;
-        use Apache::Request;
-    ";
+    my $ok;
+    eval {
+        require mod_perl;
+        if($mod_perl::VERSION >= 1.99) {
+            require Apache2::RequestRec;
+            require Apache2::RequestUtil;
+            require Apache2::RequestIO;
+            require Apache2::Response;
+            require Apache2::Request;
+            require Apache2::Const;
+            Apache2::Const->import(-compile => qw(OK DECLINED));
+            $ok = &Apache2::Const::OK;
+        } else {
+            require Apache::RequestRec;
+            require Apache::RequestUtil;
+            require Apache::RequestIO;
+            require Apache::Response;
+            require Apache::Request;
+            require Apache::Constants;
+            Apache::Constants->import(-compile => qw(OK DECLINED));
+            $ok = &Apache::Constants::OK;
+        }
+    };
 
     my $r = shift;
     eval "$r = Apache::Request->new($r)";
@@ -921,12 +976,12 @@ sub handler {
     }
 
     mod_perl_output($cfg, $html);
-    return &Apache::OK;
+    return $ok;
 }
 
 =head1 SEE ALSO
 
-L<SVN::Web::action>, svnweb-install(1)
+L<SVN::Web::action>, svnweb-install(1), svnweb-server(1)
 
 =head1 BUGS
 

@@ -55,28 +55,6 @@
           [% END %]
         [% END %]
       [% END %]
-
-<!--
-      [% FOREACH pk = paths %]
-        [% pk.value.action %] -
-        [% IF pk.value.isdir %]
-          <a href="[% script %]/[% repos %]/browse[% pk.key %]/?rev=[% rev %]">[% pk.key %]</a>
-          [% IF pk.value.copyfrom %]
-            <a href="[% script %]/[% repos %]/browse[% pk.value.copyfrom %]/?rev=[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%](from %1:%2)[%END%]</a>
-          [% END %]
-        [% ELSE %]
-          [% IF pk.value.action == 'D' %]
-            [% pk.key %]
-          [% ELSE %]
-            <a href="[% script %]/[% repos %]/view[% pk.key %]?rev=[% rev %]">[% pk.key %]</a>
-            <a href="[% script %]/[% repos %]/checkout[% pk.key %]?rev=[% rev %]">[%|l%](checkout)[%END%]</a>
-          [% END %]
-          [% IF pk.value.copyfrom %]
-            <a href="[% script %]/[% repos %]/log[% pk.value.copyfrom %]#rev[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%](from %1:%2)[%END%]</a>
-          [% END %]
-        [% END %]<br />
-      [% END %]
--->
     </td>
   </tr>
   [% END %]

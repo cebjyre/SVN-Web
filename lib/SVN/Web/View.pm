@@ -101,13 +101,13 @@ sub _log {
 		 date => $date, msg => $msg };
 
     my $root = $self->{repos}->fs()->revision_root($rev);
-
+    my $subpool = SVN::Pool->new($pool);
     $data->{paths} = 
       { map { $_ => { action => $paths->{$_}->action(),
 		      copyfrom => $paths->{$_}->copyfrom_path(),
 		      copyfromrev => $paths->{$_}->copyfrom_rev(),
-		      isdir => $root->check_path($_) == $SVN::Node::dir,
-		    }} keys %$paths};
+		      isdir => $root->check_path($_, $subpool) == $SVN::Node::dir,
+		    }, $subpool->clear() } keys %$paths};
 
     return $data;
 }

@@ -34,12 +34,14 @@ while (my ($from, $to) = each %targets) {
 
     find({ wanted => sub { 
       my $dst_path = $File::Find::name;
-      $dst_path =~ s/$path/$to/;
+      $dst_path =~ s/\Q$path\E/$to/;
 
       if(-d $File::Find::name) {
-          mkdir $dst_path;
+          mkdir $dst_path or
+	    warn "mkdir($dst_path) failed: $!\n";
       } else {
-          copy($File::Find::name, $dst_path);
+          copy($File::Find::name, $dst_path) or
+	    warn "Copying $File::Find::name -> $dst_path failed:\n$!\n";
       }
     }, no_chdir => 1 }, $path);
 }

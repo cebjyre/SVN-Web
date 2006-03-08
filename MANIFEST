@@ -59,6 +59,7 @@ SIGNATURE
 t/1use.t
 t/2basic.t
 t/3svnweb-install.t
+t/pod.t
 t/test_repo.dump
 TODO
 UPDATING.pod

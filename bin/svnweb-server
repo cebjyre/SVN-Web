@@ -1,17 +1,16 @@
-#!/usr/bin/perl
 # -*- Mode: cperl; cperl-indent-level: 4 -*-
 
 use strict;
 use warnings;
 
-use SVN::Web;
 use base qw(HTTP::Server::Simple::CGI);
 
+use SVN::Web;
 use Getopt::Long;
 
 =head1 NAME
 
-  svnweb-server - simple webserver for SVN::Web
+svnweb-server - simple webserver for SVN::Web
 
 =head1 SYNOPSIS
 
@@ -43,7 +42,7 @@ Options, defaults to C<8080>.
 =item --net-server Net::Server
 
 The Net::Server subclass to use to create the server.  A single,
-non-forking server is createdby default.  Other types of server can be
+non-forking server is created by default.  Other types of server can be
 created by giving the correct Net::Server subclass.  For example, to
 use a server that forks to handle each request, use C<--net-server
 Net::Server::Fork>.
@@ -52,13 +51,13 @@ Net::Server::Fork>.
 
 =cut
 
-my %options = ('root=s' => '.',
-	       'port=i' => '8080',
-	       'net-server=s' => undef);
+my %options = ('root'   => '.',
+	       'port'   => '8080',
+	       'net_server' => undef);
 
-GetOptions('root=s'   => \$options{root},
-	   'port=i'   => \$options{port},
-	   'server=s' => \$options{server},
+GetOptions('root=s'       => \$options{root},
+	   'port=i'       => \$options{port},
+	   'net-server=s' => \$options{net_server},
 	  );
 
 sub handle_request {
@@ -80,7 +79,6 @@ sub handle_request {
 
 use CGI::Carp qw(fatalsToBrowser);
 
-my $server = __PACKAGE__->new($options{port});
 if(! -f "$options{root}/config.yaml") {
     print <<EOM;
 Can't find $options{root}/config.yaml.  Make sure you've run svnweb-install
@@ -88,8 +86,10 @@ in $options{root} before running this server.
 EOM
     exit;
 }
-chdir($options{root});
 
+chdir($options{root});
+my $server = __PACKAGE__->new($options{port});
+$server->net_server($options{net_server}) if defined $options{net_server};
 $server->run();
 
 exit;

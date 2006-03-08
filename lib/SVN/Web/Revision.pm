@@ -164,9 +164,11 @@ sub _log {
 				  }} keys %$paths};
     my $root = $self->{repos}->fs->revision_root ($rev);
     my $oldroot = $self->{repos}->fs->revision_root ($rev-1);
+    my $subpool = SVN::Pool->new($pool);
     for (keys %{$data->{paths}}) {
 	$data->{paths}{$_}{isdir} = 1
-	    if $data->{paths}{$_}{action} eq 'D' ? $oldroot->is_dir ($_) : $root->is_dir ($_);
+	    if $data->{paths}{$_}{action} eq 'D' ? $oldroot->is_dir ($_, $subpool) : $root->is_dir ($_, $subpool);
+	$subpool->clear();
     }
     return $data;
 }
@@ -181,10 +183,14 @@ sub run {
       SVN::Web::X->throw(error => '(no revision)',
 			 vars => []);
 
+    my $fs           = $self->{repos}->fs();
+    my $youngest_rev = $fs->youngest_rev();
+
+    SVN::Web::X->throw(error => '(revision %1 does not exist)',
+		       vars => [$rev]) if $rev > $youngest_rev;
+
     $self->{repos}->get_logs (['/'], $rev, $rev, 1, 0,
 			      sub { $self->{REV} = $self->_log(@_)});
-
-    my $fs = $self->{repos}->fs();
 
     $self->make_diffs($rev) if $self->{opts}{show_diff};
 
@@ -216,6 +222,11 @@ sub make_diffs {
 	$kind = $root2->check_path($path);
 	next if $kind == $SVN::Node::none;
 
+	# Skip the diff if either of the files have a non-text MIME type
+	my $mt1 = $root1->node_prop($path, 'svn:mime-type') || 'text/plain';
+	my $mt2 = $root2->node_prop($path, 'svn:mime-type') || 'text/plain';
+	next if ($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
+
 	$self->{REV}->{paths}{$path}{diff} = Text::Diff::diff
 	  ($root2->file_contents($path),
 	   $root1->file_contents($path),
@@ -234,6 +245,11 @@ sub make_diffs {
 
 	my $root1 = $fs->revision_root($rev);
 	my $root2 = $fs->revision_root($self->{REV}->{paths}{$path}{copyfromrev});
+
+	# Skip the diff if either of the files have a non-text MIME type
+	my $mt1 = $root1->node_prop($path, 'svn:mime-type') || 'text/plain';
+	my $mt2 = $root2->node_prop($path, 'svn:mime-type') || 'text/plain';
+	next if ($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
 
 	# If the files have differing MD5s then do a diff
 	if($root1->file_md5_checksum($path) ne $root2->file_md5_checksum($src)) {

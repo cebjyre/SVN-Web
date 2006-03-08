@@ -170,6 +170,10 @@ msgstr "The path <tt>\"%1\"</tt> is not a file in the repository at "
 msgid "(no revision)"
 msgstr "You must provide a revision for this action to operate on."
 
+msgid "(revision %1 does not exist)"
+msgstr "Revision %1 does not exist in this repository.  Did you make "
+"a mistake entering the number?"
+
 msgid "(action %1 not supported)"
 msgstr "The action \"%1\" has not been enabled in this SVN::Web "
 "installation.\n"
@@ -267,3 +271,27 @@ msgstr "The configuration file contains <tt>templatedir</tt> and a "
 
 msgid "(view plain text)"
 msgstr "View Plain Text"
+
+msgid "(age)"
+msgstr "Age"
+
+msgid "(%1 second)"
+msgstr "%quant(%1, second, seconds)"
+
+msgid "(%1 minute)"
+msgstr "%quant(%1, minute, minutes)"
+
+msgid "(%1 hour)"
+msgstr "%quant(%1, hour, hours)"
+
+msgid "(%1 day)"
+msgstr "%quant(%1, day, days)"
+
+msgid "(%1 week)"
+msgstr "%quant(%1, week, weeks)"
+
+msgid "(%1 month)"
+msgstr "%quant(%1, month, months)"
+
+msgid "(%1 year)"
+msgstr "%quant(%1, year, years)"
