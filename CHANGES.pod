@@ -8,6 +8,16 @@ Changes between SVN::Web versions.
 
 =head1 DESCRIPTION
 
+=head2 0.45, released Mar 8, 2006
+
+=over
+
+=item
+
+Fixed a bug that broke mod_perl support.
+
+=back
+
 =head2 0.44, released Mar 8, 2006
 
 =over

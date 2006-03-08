@@ -1,7 +1,7 @@
 # -*- Mode: cperl; cperl-indent-level: 4 -*-
 package SVN::Web;
 use strict;
-our $VERSION = '0.44';
+our $VERSION = '0.45';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
@@ -902,6 +902,8 @@ sub log_msg_filter {
 
 sub handler {
     my $ok;
+    require CGI;
+
     eval {
         require mod_perl;
         if($mod_perl::VERSION >= 1.99) {
