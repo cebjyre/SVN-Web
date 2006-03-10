@@ -1,7 +1,7 @@
 # -*- Mode: cperl; cperl-indent-level: 4 -*-
 package SVN::Web;
 use strict;
-our $VERSION = '0.45';
+our $VERSION = '0.46';
 use SVN::Core;
 use SVN::Repos;
 use YAML ();
@@ -765,9 +765,11 @@ sub get_template {
 }
 
 sub run_cgi {
+    my %opts = @_;
     die $@ if $@;
     $pool ||= SVN::Pool->new_default;
     load_config('config.yaml');
+    $config->{$_} = $opts{$_} foreach keys %opts;
     $template ||= get_template ();
     $config->{diff_context} ||= 3;
 

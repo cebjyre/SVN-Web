@@ -73,7 +73,7 @@ sub handle_request {
     } else {
         $ENV{SCRIPT_NAME} = 'http://' . $self->host() . ':' . $self->port();
 	print "HTTP/1.1 200 OK\n";
-        SVN::Web::run_cgi();
+        SVN::Web::run_cgi(cgi_class => 'CGI');
     }
 }
 
@@ -114,6 +114,11 @@ are entered by hand.
 
 This will also affect L<SVN::Web::List>'s C<redirect_to_browse_when_one_repo>
 option.
+
+=item cgi_class
+
+The C<cgi_class> declaration (if any) in F<config.yaml> is ignored.  L<CGI>
+is always used as the CGI class.
 
 =back
 

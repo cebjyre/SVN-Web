@@ -8,6 +8,11 @@ Notes on updating from previous versions of SVN::Web
 
 =head1 DESCRIPTION
 
+=head2 0.45 to 0.46
+
+This was solely a bug fix release, with no changes to the templates,
+localisation, or configuration files.
+
 =head2 0.44 to 0.45
 
 This was solely a bug fix release, with no changes to the templates,

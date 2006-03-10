@@ -8,6 +8,19 @@ Changes between SVN::Web versions.
 
 =head1 DESCRIPTION
 
+=head2 0.46, released Mar 9, 2006
+
+=over
+
+=item
+
+Fixed a bug in C<svnweb-server>.  The L<CGI> module is now always used
+when running under this server, instead of L<CGI::Fast>.  This should
+fix problems if you are trying to use C<svnweb-server> on a host with
+L<CGI::Fast> installed.
+
+=back
+
 =head2 0.45, released Mar 8, 2006
 
 =over
