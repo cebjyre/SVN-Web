@@ -103,10 +103,5 @@ informative to the user than the error message.
 
 =cut
 
-use Exception::Class(
-		     'SVN::Web::X' =>
-		     {
-		      fields => ['vars'],
-		      },
-		     );
+use Exception::Class('SVN::Web::X' => { fields => ['vars'], },);
 1;

@@ -1,8 +1,13 @@
 package SVN::Web::Log;
+
 use strict;
+use warnings;
+
 use SVN::Core;
 use SVN::Repos;
 use SVN::Fs;
+
+use base 'SVN::Web::action';
 
 =head1 NAME
 
@@ -41,6 +46,10 @@ youngest revision.
 =head1 TEMPLATE VARIABLES
 
 =over 8
+
+=item at_head
+
+A boolean value, true if the log starts with the most recent revision.
 
 =item isdir
 
@@ -121,44 +130,45 @@ None.
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $self = bless {}, $class;
-    %$self = @_;
-
-    return $self;
-}
-
 sub _log {
-    my ($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
-#    my ($self, $rev, $root, $paths, $props) = @_;
-    return unless $rev > 0;
-#    my ($author, $date, $message) = @{$props}{qw/svn:author svn:date svn:log/};
+    my($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
 
-    my $data = { rev => $rev, author => $author,
-		 date => $date, msg => $msg };
+    return unless $rev > 0;
+
+    my $data = {
+        rev    => $rev,
+        author => $author,
+        date   => $date,
+        msg    => $msg
+    };
 
     my $root = $self->{repos}->fs()->revision_root($rev);
 
     my $subpool = SVN::Pool->new($pool);
-    $data->{paths} = 
-      { map { $_ => { action => $paths->{$_}->action(),
-		      copyfrom => $paths->{$_}->copyfrom_path(),
-		      copyfromrev => $paths->{$_}->copyfrom_rev(),
-		      isdir => $root->check_path($_, $subpool) == $SVN::Node::dir,
-		    }, $subpool->clear() } keys %$paths};
+    $data->{paths} = {
+        map {
+            $_ => {
+                action      => $paths->{$_}->action(),
+                copyfrom    => $paths->{$_}->copyfrom_path(),
+                copyfromrev => $paths->{$_}->copyfrom_rev(),
+                isdir => $root->check_path($_, $subpool) == $SVN::Node::dir,
+                },
+                $subpool->clear()
+            } keys %$paths
+    };
 
     foreach my $path (keys %{ $data->{paths} }) {
-      if(defined $data->{paths}{$path}{copyfrom}) {
-	if($root->check_path($data->{paths}{$path}{copyfrom}) == $SVN::Node::dir) {
-	  if($data->{paths}{$path}{copyfrom} !~ m|/$|) {
-	    $data->{paths}{$path}{copyfrom} .= '/';
-	  }
-	}
-      }
+        if(defined $data->{paths}{$path}{copyfrom}) {
+            if($root->check_path($data->{paths}{$path}{copyfrom})
+                == $SVN::Node::dir) {
+                if($data->{paths}{$path}{copyfrom} !~ m|/$|) {
+                    $data->{paths}{$path}{copyfrom} .= '/';
+                }
+            }
+        }
     }
 
-    push @{$self->{REVS}}, $data;
+    push @{ $self->{REVS} }, $data;
 }
 
 # XXX: stolen from svk::util
@@ -167,57 +177,87 @@ sub traverse_history {
 
     my $old_pool = SVN::Pool->new;
     my $new_pool = SVN::Pool->new;
-    my $spool = SVN::Pool->new_default;
+    my $spool    = SVN::Pool->new_default;
 
-    my $hist = $args{root}->node_history ($args{path}, $old_pool);
+    my $hist = $args{root}->node_history($args{path}, $old_pool);
     my $rv;
 
-    while ($hist = $hist->prev(($args{cross} || 0), $new_pool)) {
-        $rv = $args{callback}->($hist->location ($new_pool));
+    while($hist = $hist->prev(($args{cross} || 0), $new_pool)) {
+        $rv = $args{callback}->($hist->location($new_pool));
         last if !$rv;
         $old_pool->clear;
-	$spool->clear;
+        $spool->clear;
         ($old_pool, $new_pool) = ($new_pool, $old_pool);
     }
 
     return $rv;
 }
 
-sub run {
+sub cache_key {
     my $self = shift;
-    my $pool = SVN::Pool->new_default_sub;
-    my $fs = $self->{repos}->fs;
+    my $path  = $self->{path};
+    my $fs    = $self->{repos}->fs();
+
+    my(undef, undef, $act_rev, $head) = $self->get_revs();
+
+    my $root  = $fs->revision_root($act_rev);
+    my $kind  = $root->check_path($path);
+
+    return if $kind == $SVN::Node::dir and $path !~ m{/$};
+
+    my $limit = $self->{cgi}->param('limit') || 20;
+
+    return "$act_rev:$limit:$head:$path";
+}
+
+sub run {
+    my $self  = shift;
+    my $pool  = SVN::Pool->new_default_sub;
+    my $fs    = $self->{repos}->fs;
     my $limit = $self->{cgi}->param('limit') || 20;
     my $rev   = $self->{cgi}->param('rev') || $fs->youngest_rev();
-    my $root = $fs->revision_root ($rev);
+    my $root  = $fs->revision_root($rev);
+    my $path  = $self->{path};
 
-    my $kind = $root->check_path($self->{path});
+    my(undef, undef, undef, $head) = $self->get_revs();
+
+    my $kind = $root->check_path($path);
     if($kind == $SVN::Node::dir) {
-      if($self->{path} !~ m|/$|) {
-	print $self->{cgi}->redirect(-uri => $self->{cgi}->self_url() . '/');
-      }
+        if($path !~ m|/$|) {
+            print $self->{cgi}
+                ->redirect(-uri => $self->{cgi}->self_url() . '/');
+        }
     }
 
     my $endrev = 0;
-    if ($limit) {
-	my $left = $limit;
-	traverse_history (root => $root, path => $self->{path}, cross => 0,
-			  callback => sub { $endrev = $_[1]; return --$left });
+    if($limit) {
+        my $left = $limit;
+        traverse_history(
+            root     => $root,
+            path     => $path,
+            cross    => 0,
+            callback => sub { $endrev = $_[1]; return --$left }
+        );
     }
-#    SVK::Command::Log::do_log (repos => $self->{repos}, limit => $limit,
-#			       path => $self->{path},
-#			       fromrev => $fs->youngest_rev, torev => -1,
-#			       cb_log => sub {$self->_log(@_)});
 
-    $self->{repos}->get_logs ([$self->{path}], $rev, $endrev, 1, 0,
-                             sub { $self->_log(@_)});
-    return {template => 'log',
-	    data => { isdir => ($root->is_dir($self->{path})),
-		      revs => $self->{REVS},
-		      limit => $limit,
-		      rev => $rev,
-		      youngest_rev => $fs->youngest_rev(),
-		    }};
+    #    SVK::Command::Log::do_log (repos => $self->{repos}, limit => $limit,
+    #			       path => $self->{path},
+    #			       fromrev => $fs->youngest_rev, torev => -1,
+    #			       cb_log => sub {$self->_log(@_)});
+
+    $self->{repos}->get_logs([$path], $rev, $endrev, 1, 0,
+        sub { $self->_log(@_) });
+    return {
+        template => 'log',
+        data     => {
+            isdir        => ($root->is_dir($path)),
+            revs         => $self->{REVS},
+            limit        => $limit,
+            rev          => $rev,
+            youngest_rev => $fs->youngest_rev(),
+            at_head      => $head,
+        }
+    };
 }
 
 1;

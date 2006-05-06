@@ -51,14 +51,17 @@ Net::Server::Fork>.
 
 =cut
 
-my %options = ('root'   => '.',
-	       'port'   => '8080',
-	       'net_server' => undef);
+my %options = (
+    'root'       => '.',
+    'port'       => '8080',
+    'net_server' => undef
+);
 
-GetOptions('root=s'       => \$options{root},
-	   'port=i'       => \$options{port},
-	   'net-server=s' => \$options{net_server},
-	  );
+GetOptions(
+    'root=s'       => \$options{root},
+    'port=i'       => \$options{port},
+    'net-server=s' => \$options{net_server},
+);
 
 sub handle_request {
     my($self, $cgi) = @_;
@@ -72,14 +75,14 @@ sub handle_request {
         close FILE;
     } else {
         $ENV{SCRIPT_NAME} = 'http://' . $self->host() . ':' . $self->port();
-	print "HTTP/1.1 200 OK\n";
+        print "HTTP/1.1 200 OK\n";
         SVN::Web::run_cgi(cgi_class => 'CGI');
     }
 }
 
 use CGI::Carp qw(fatalsToBrowser);
 
-if(! -f "$options{root}/config.yaml") {
+if(!-f "$options{root}/config.yaml") {
     print <<EOM;
 Can't find $options{root}/config.yaml.  Make sure you've run svnweb-install
 in $options{root} before running this server.

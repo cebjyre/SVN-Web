@@ -1,6 +1,6 @@
 ---
 name: SVN-Web
-version: 0.46
+version: 0.47
 author:
   - 'Nik Clayton <nik@FreeBSD.org>'
 abstract: Subversion repository web frontend
@@ -16,17 +16,21 @@ requires:
   Template::Plugin::Number::Format: 0
   Text::Diff: 0
   Text::Diff::HTML: 0
+  URI: 0
   XML::RSS: 0
   YAML: 0
 recommends:
+  Cache::Cache: 0
   HTTP::Server::Simple: 0
   Template::Plugin::Clickable: 0
   Template::Plugin::Clickable::Email: 0
   Template::Plugin::Subst: 0
+  Test::Benchmark: 0
+  Test::HTML::Tidy: 0
 provides:
   SVN::Web:
     file: lib/SVN/Web.pm
-    version: 0.46
+    version: 0.47
   SVN::Web::Browse:
     file: lib/SVN/Web/Browse.pm
   SVN::Web::Checkout:

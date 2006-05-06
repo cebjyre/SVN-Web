@@ -1,5 +1,10 @@
 package SVN::Web::Revision;
+
 use strict;
+use warnings;
+
+use base 'SVN::Web::action';
+
 use Text::Diff;
 use SVN::Core;
 use SVN::Repos;
@@ -145,133 +150,154 @@ The C<rev> parameter was not given.
 
 my %default_opts = (show_diff => 1);
 
-sub new {
-    my $class = shift;
-    my $self = bless {}, $class;
-    %$self = @_;
-
-    return $self;
-}
-
 sub _log {
-    my ($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
+    my($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
     $pool->default;
-    my $data = {rev => $rev, author => $author,
-		date => $date, msg => $msg};
-    $data->{paths} = {map { $_ => {action => $paths->{$_}->action,
-				   copyfrom => $paths->{$_}->copyfrom_path,
-				   copyfromrev => $paths->{$_}->copyfrom_rev,
-				  }} keys %$paths};
-    my $root = $self->{repos}->fs->revision_root ($rev);
-    my $oldroot = $self->{repos}->fs->revision_root ($rev-1);
+    my $data = {
+        rev    => $rev,
+        author => $author,
+        date   => $date,
+        msg    => $msg
+    };
+    $data->{paths} = {
+        map {
+            $_ => {
+                action      => $paths->{$_}->action,
+                copyfrom    => $paths->{$_}->copyfrom_path,
+                copyfromrev => $paths->{$_}->copyfrom_rev,
+                }
+            } keys %$paths
+    };
+    my $root    = $self->{repos}->fs->revision_root($rev);
+    my $oldroot = $self->{repos}->fs->revision_root($rev - 1);
     my $subpool = SVN::Pool->new($pool);
-    for (keys %{$data->{paths}}) {
-	$data->{paths}{$_}{isdir} = 1
-	    if $data->{paths}{$_}{action} eq 'D' ? $oldroot->is_dir ($_, $subpool) : $root->is_dir ($_, $subpool);
-	$subpool->clear();
+    for(keys %{ $data->{paths} }) {
+        $data->{paths}{$_}{isdir} = 1
+            if $data->{paths}{$_}{action} eq 'D'
+            ? $oldroot->is_dir($_, $subpool)
+            : $root->is_dir($_,    $subpool);
+        $subpool->clear();
     }
     return $data;
 }
 
+sub cache_key {
+    my $self = shift;
+
+    return $self->{cgi}->param('rev');
+}
+
 sub run {
-    my $self    = shift;
+    my $self = shift;
 
-    $self->{opts} = { %default_opts, %{$self->{opts}} };
+    $self->{opts} = { %default_opts, %{ $self->{opts} } };
 
-    my $pool    = SVN::Pool->new_default_sub;
-    my $rev     = $self->{cgi}->param('rev') || 
-      SVN::Web::X->throw(error => '(no revision)',
-			 vars => []);
+    my $pool = SVN::Pool->new_default_sub;
+    my $rev  = $self->{cgi}->param('rev')
+        || SVN::Web::X->throw(
+        error => '(no revision)',
+        vars  => []
+        );
 
     my $fs           = $self->{repos}->fs();
     my $youngest_rev = $fs->youngest_rev();
 
-    SVN::Web::X->throw(error => '(revision %1 does not exist)',
-		       vars => [$rev]) if $rev > $youngest_rev;
+    SVN::Web::X->throw(
+        error => '(revision %1 does not exist)',
+        vars  => [$rev]
+        )
+        if $rev > $youngest_rev;
 
-    $self->{repos}->get_logs (['/'], $rev, $rev, 1, 0,
-			      sub { $self->{REV} = $self->_log(@_)});
+    $self->{repos}->get_logs(['/'], $rev, $rev, 1, 0,
+        sub { $self->{REV} = $self->_log(@_) });
 
     $self->make_diffs($rev) if $self->{opts}{show_diff};
 
-    return {template => 'revision',
-	    data => { rev => $rev,
-		      youngest_rev => $fs->youngest_rev(),
-		      %{$self->{REV}}}};
+    return {
+        template => 'revision',
+        data     => {
+            rev          => $rev,
+            youngest_rev => $fs->youngest_rev(),
+            %{ $self->{REV} }
+        }
+    };
 }
 
 sub make_diffs {
     my $self = shift;
     my $rev  = shift;
 
-    my $fs = $self->{repos}->fs();
+    my $fs      = $self->{repos}->fs();
     my $context = $self->{cgi}->param('context')
-      || $self->{config}->{diff_context};
+        || $self->{config}->{diff_context};
 
     # Generate the diffs for each file
-    foreach my $path (keys %{$self->{REV}->{paths}}) {
-      next if $self->{REV}->{paths}{$path}{isdir};
+    foreach my $path (keys %{ $self->{REV}->{paths} }) {
+        next if $self->{REV}->{paths}{$path}{isdir};
 
-      if($self->{REV}->{paths}{$path}{action} eq 'M') {
-	my $root1 = $fs->revision_root($rev);
-	my $root2 = $fs->revision_root($rev - 1);
+        if($self->{REV}->{paths}{$path}{action} eq 'M') {
+            my $root1 = $fs->revision_root($rev);
+            my $root2 = $fs->revision_root($rev - 1);
 
-	my $kind;
-	$kind = $root1->check_path($path);
-	next if $kind == $SVN::Node::none;
-	$kind = $root2->check_path($path);
-	next if $kind == $SVN::Node::none;
+            my $kind;
+            $kind = $root1->check_path($path);
+            next if $kind == $SVN::Node::none;
+            $kind = $root2->check_path($path);
+            next if $kind == $SVN::Node::none;
 
-	# Skip the diff if either of the files have a non-text MIME type
-	my $mt1 = $root1->node_prop($path, 'svn:mime-type') || 'text/plain';
-	my $mt2 = $root2->node_prop($path, 'svn:mime-type') || 'text/plain';
-	next if ($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
+            # Skip the diff if either of the files have a non-text MIME type
+            my $mt1 = $root1->node_prop($path, 'svn:mime-type')
+                || 'text/plain';
+            my $mt2 = $root2->node_prop($path, 'svn:mime-type')
+                || 'text/plain';
+            next if($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
 
-	$self->{REV}->{paths}{$path}{diff} = Text::Diff::diff
-	  ($root2->file_contents($path),
-	   $root1->file_contents($path),
-	   { STYLE => 'Text::Diff::HTML',
-	     CONTEXT => $context, });
+            $self->{REV}->{paths}{$path}{diff} = Text::Diff::diff(
+                $root2->file_contents($path),
+                $root1->file_contents($path),
+                {   STYLE   => 'Text::Diff::HTML',
+                    CONTEXT => $context,
+                }
+            );
 
-	next;
-      }
+            next;
+        }
 
-      # If the file was added it may have been copied from another file.
-      # Find out if it was, and if it was, do a diff between the two files.
-      # If there were any changes then show them
-      if(($self->{REV}->{paths}{$path}{action} eq 'A') and
-	 defined $self->{REV}->{paths}{$path}{copyfrom}) {
-	my $src = $self->{REV}->{paths}{$path}{copyfrom};
+        # If the file was added it may have been copied from another file.
+        # Find out if it was, and if it was, do a diff between the two files.
+        # If there were any changes then show them
+        if(($self->{REV}->{paths}{$path}{action} eq 'A')
+            and defined $self->{REV}->{paths}{$path}{copyfrom}) {
+            my $src = $self->{REV}->{paths}{$path}{copyfrom};
 
-	my $root1 = $fs->revision_root($rev);
-	my $root2 = $fs->revision_root($self->{REV}->{paths}{$path}{copyfromrev});
+            my $root1 = $fs->revision_root($rev);
+            my $root2 = $fs->revision_root(
+                $self->{REV}->{paths}{$path}{copyfromrev});
 
-	# Skip the diff if either of the files have a non-text MIME type
-	my $mt1 = $root1->node_prop($path, 'svn:mime-type') || 'text/plain';
-	my $mt2 = $root2->node_prop($path, 'svn:mime-type') || 'text/plain';
-	next if ($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
+            # Skip the diff if either of the files have a non-text MIME type
+            my $mt1 = $root1->node_prop($path, 'svn:mime-type')
+                || 'text/plain';
+            my $mt2 = $root2->node_prop($path, 'svn:mime-type')
+                || 'text/plain';
+            next if($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
 
-	# If the files have differing MD5s then do a diff
-	if($root1->file_md5_checksum($path) ne $root2->file_md5_checksum($src)) {
-	  $self->{REV}->{paths}{$path}{diff} = Text::Diff::diff
-	    ($root2->file_contents($src),
-	     $root1->file_contents($path),
-	     { STYLE => 'Text::Diff::HTML' });
-	}
+            # If the files have differing MD5s then do a diff
+            if($root1->file_md5_checksum($path) ne
+                $root2->file_md5_checksum($src)) {
+                $self->{REV}->{paths}{$path}{diff} = Text::Diff::diff(
+                    $root2->file_contents($src),
+                    $root1->file_contents($path),
+                    { STYLE => 'Text::Diff::HTML' }
+                );
+            }
 
-	next;
-      }
+            next;
+        }
     } continue {
-      if(defined $self->{REV}->{paths}{$path}{diff}) {
-	$self->{REV}->{paths}{$path}{diff} =~ s/^  /<span class="diff-leader">  <\/span>/mg;
-	$self->{REV}->{paths}{$path}{diff} =~ s/<span class="ctx">  /<span class="ctx">/mg;
-	$self->{REV}->{paths}{$path}{diff} =~ s/<ins>\+ /<span class="ins"><span class="diff-leader">+ <\/span>/mg;
-	$self->{REV}->{paths}{$path}{diff} =~ s/<del>- /<span class="del"><span class="diff-leader">- <\/span>/mg;
-	$self->{REV}->{paths}{$path}{diff} =~ s/<\/ins>/<\/span>/mg;
-	$self->{REV}->{paths}{$path}{diff} =~ s/<\/del>/<\/span>/mg;
-	$self->{REV}->{paths}{$path}{diff} =~ s/^- /<span class="diff-leader">- <\/span>/mg;
-	$self->{REV}->{paths}{$path}{diff} =~ s/^\+ /<span class="diff-leader">+ <\/span>/mg;
-      }
+        if(defined $self->{REV}->{paths}{$path}{diff}) {
+	    $self->{REV}->{paths}{$path}{diff} =
+	      $self->_munge_html_diff($self->{REV}->{paths}{$path}{diff});
+        }
     }
 }
 

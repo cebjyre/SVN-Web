@@ -1,7 +1,12 @@
 # -*- Mode: cperl; cperl-indent-level: 4 -*-
 
 package SVN::Web::Diff;
+
 use strict;
+use warnings;
+
+use base 'SVN::Web::action';
+
 use Text::Diff;
 use SVN::Core;
 use SVN::Repos;
@@ -117,118 +122,148 @@ they're the same number.
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $self = bless {}, $class;
-    %$self = @_;
+sub cache_key {
+    my $self = shift;
 
-    return $self;
+    my($rev1, $rev2) = $self->_check_params();
+    my $path         = $self->{path};
+    my $mime         = $self->{cgi}->param('mime') || 'text/html';
+
+    return "$rev1:$rev2:$mime:$path";
 }
 
 sub run {
-    my $self    = shift;
-    my $pool    = SVN::Pool->new_default_sub;
-    my $fs      = $self->{repos}->fs;
-    my $rev1    = $self->{cgi}->param('rev1');
-    my $rev2    = $self->{cgi}->param('rev2');
-    my @revs    = $self->{cgi}->param('revs');
+    my $self = shift;
 
-    if(@revs) {
-	$rev1 = min(@revs);
-	$rev2 = max(@revs);
-    }
+    my($rev1, $rev2) = $self->_check_params();
 
-    SVN::Web::X->throw(error => '(two revisions must be provided)',
-		       vars  => [])
-	unless defined $rev1 and defined $rev2;
+    my $pool = SVN::Pool->new_default_sub;
+    my $fs   = $self->{repos}->fs;
+    my $path = $self->{path};
 
-    SVN::Web::X->throw(error => '(rev1 and rev2 must be different)',
-		       vars  => [])
-	if @revs and @revs < 2;
-
-    SVN::Web::X->throw(error => '(rev1 and rev2 must be different)',
-		       vars  => [])
-	if $rev1 == $rev2;
-
-    my $mime    = $self->{cgi}->param('mime') || 'text/html';
+    my $mime = $self->{cgi}->param('mime') || 'text/html';
     my $context = $self->{cgi}->param('context')
-                  || $self->{config}->{diff_context};
+        || $self->{config}->{diff_context};
 
-    my $root1 = $fs->revision_root ($rev1);
-    my $root2 = $fs->revision_root ($rev2);
-    my $kind = $root1->check_path ($self->{path});
+    my $rev1_root = $fs->revision_root($rev1);
+    my $rev2_root = $fs->revision_root($rev2);
 
-    if($kind == $SVN::Node::none) {
-	SVN::Web::X->throw(error => '(path %1 does not exist in revision %2)',
-			   vars => [$self->{path}, $rev1]);
-    }
+    $self->_check_path($path, $rev1, $fs);
+    $self->_check_path($path, $rev2, $fs);
 
-    $kind = $root2->check_path($self->{path});
-
-    if($kind == $SVN::Node::none) {
-	SVN::Web::X->throw(error => '(path %1 does not exist in revision %2)',
-			   vars => [$self->{path}, $rev2]);
-    }
-
+    my $kind  = $rev1_root->check_path($path);
     my $output;
 
-    if ($kind == $SVN::Node::dir) {
-	SVN::Web::X->throw(error => '(directory diff requires svk)',
-			   vars => [])
-	    unless $has_svk;
+    if($kind == $SVN::Node::dir) {
+        SVN::Web::X->throw(
+            error => '(directory diff requires svk)',
+            vars  => []
+            )
+            unless $has_svk;
 
-	my $path = $self->{path};
-	$path =~ s|/$||;
+        $path =~ s|/$||;
 
-	my $editor = SVN::DiffEditor->new
-	    ( cb_basecontent => sub { my ($rpath) = @_;
-				      my $base = $root1->file_contents ("$path/$rpath");
-				      return $base;
-				  },
-	      cb_baseprop => sub { my ($rpath, $pname) = @_;
-				   return $root1->node_prop ("$path/$rpath", $pname);
-			       },
-	      llabel => "revision $rev1",
-	      rlabel => "revision $rev2",
-	      lpath  => $path,
-	      rpath  => $path,
-	      fh     => IO::String->new(\$output)
-	    );
+        my $editor = SVN::DiffEditor->new(
+            cb_basecontent => sub {
+                my($rpath) = @_;
+                my $base = $rev1_root->file_contents("$path/$rpath");
+                return $base;
+            },
+            cb_baseprop => sub {
+                my($rpath, $pname) = @_;
+                return $rev1_root->node_prop("$path/$rpath", $pname);
+            },
+            llabel => "revision $rev1",
+            rlabel => "revision $rev2",
+            lpath  => $path,
+            rpath  => $path,
+            fh     => IO::String->new(\$output)
+        );
 
-	SVN::Repos::dir_delta ($root1, $path, '',
-			       $root2, $path,
-			       $editor, undef,
-			       1, 1, 0, 1);
-    }
-    else {
+        SVN::Repos::dir_delta($rev1_root, $path, '', $rev2_root, $path,
+			      $editor, undef, 1, 1, 0, 1);
+    } else {
         my $style;
-	$mime eq 'text/html' and $style = 'Text::Diff::HTML';
-	$mime eq 'text/plain' and $style = 'Unified';
+        $mime eq 'text/html'  and $style = 'Text::Diff::HTML';
+        $mime eq 'text/plain' and $style = 'Unified';
 
-	$output = Text::Diff::diff
-	    ($root1->file_contents ($self->{path}),
-	     $root2->file_contents ($self->{path}),
-	     { STYLE => $style,
-	       CONTEXT => $context, });
+        $output = Text::Diff::diff(
+            $rev1_root->file_contents($path),
+            $rev2_root->file_contents($path),
+            {   STYLE   => $style,
+                CONTEXT => $context,
+            }
+        );
     }
 
     if($mime eq 'text/html') {
-	$output =~ s/^  /<span class="diff-leader">  <\/span>/mg;
-	$output =~ s/<span class="ctx">  /<span class="ctx"><span class="diff-leader">  <\/span>/mg;
-	$output =~ s/<ins>\+ /<span class="ins"><span class="diff-leader">+ <\/span>/mg;
-	$output =~ s/<del>- /<span class="del"><span class="diff-leader">- <\/span>/mg;
-	$output =~ s/<\/ins>/<\/span>/mg;
-	$output =~ s/<\/del>/<\/span>/mg;
-	$output =~ s/^- /<span class="diff-leader">- <\/span>/mg;
-	$output =~ s/^\+ /<span class="diff-leader">+ <\/span>/mg;
+	$output = $self->_munge_html_diff($output);
 
-	return { template => 'diff',
-		 data => { rev1 => $rev1,
-			   rev2 => $rev2,
-			   body => $output }};
+        return {
+            template => 'diff',
+            data     => {
+                rev1 => $rev1,
+                rev2 => $rev2,
+                body => $output
+            }
+        };
     } else {
-	return { mimetype => $mime,
-		 body => $output };
+        return {
+            mimetype => $mime,
+            body     => $output
+        };
+    }
+}
+
+sub _check_params {
+    my $self = shift;
+
+    my $rev1 = $self->{cgi}->param('rev1');
+    my $rev2 = $self->{cgi}->param('rev2');
+    my @revs = $self->{cgi}->param('revs');
+
+    if(@revs) {
+        $rev1 = min(@revs);
+        $rev2 = max(@revs);
+    }
+
+    SVN::Web::X->throw(
+        error => '(two revisions must be provided)',
+        vars  => []
+        )
+        unless defined $rev1
+        and defined $rev2;
+
+    SVN::Web::X->throw(
+        error => '(rev1 and rev2 must be different)',
+        vars  => []
+        )
+        if @revs and @revs < 2;
+
+    SVN::Web::X->throw(
+        error => '(rev1 and rev2 must be different)',
+        vars  => []
+        )
+        if $rev1 == $rev2;
+
+    return($rev1, $rev2);
+}
+
+# Make sure that a path exists in a revision
+sub _check_path {
+    my $self = shift;
+    my $path = shift;
+    my $rev  = shift;
+    my $fs   = shift;
+
+    my $root = $fs->revision_root($rev);
+    my $kind = $root->check_path($path);
+
+    if($kind == $SVN::Node::none) {
+	SVN::Web::X->throw(
+	    error => '(path %1 does not exist in revision %2)',
+            vars  => [$path, $rev],
+        );
     }
 }
 

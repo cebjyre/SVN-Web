@@ -1,4 +1,4 @@
-<p><a href="[% script %]/[% repos %]/log[% path %][% revstr %]">[%|l%](view revision log)[%END%]</a> | <a href="[% script %]/[% repos %]/checkout[% path %][% revstr %]">[%|l%](checkout)[%END%]</a></p>
+<p><a href="[% script %]/[% repos %]/log[% path | uri | html %][% revstr %]">[%|l%](view revision log)[%END%]</a> | <a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a></p>
 
 <table id="info" summary="[%|l%](revision log)[%END%]">
   <tr>
@@ -12,8 +12,8 @@
   [% IF mimetype.match('^text/') %]
     <pre class="code-block">[% file | html %]</pre>
   [% ELSIF mimetype.match('^image/') %]
-    <img src="[% script %]/[% repos %]/checkout[% path %]" />
+    <img src="[% script %]/[% repos %]/checkout[% path | uri | html %]" />
   [% ELSE %]
-<p>This file can not be displayed in the browser.  You can <a href="[% script %]/[% repos %]/checkout[% path %]">download it</a>.</p>
+<p>This file can not be displayed in the browser.  You can <a href="[% script %]/[% repos %]/checkout[% path | uri | html %]">download it</a>.</p>
   [% END %]
 </div>

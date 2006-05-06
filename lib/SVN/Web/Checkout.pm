@@ -1,5 +1,10 @@
 package SVN::Web::Checkout;
+
 use strict;
+use warnings;
+
+use base 'SVN::Web::action';
+
 use SVN::Core;
 use SVN::Repos;
 use SVN::Fs;
@@ -51,30 +56,27 @@ The given path is not a file in the given revision.
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $self = bless {}, $class;
-    %$self = @_;
-
-    return $self;
-}
-
 sub run {
     my $self = shift;
     my $pool = SVN::Pool->new_default_sub;
-    my $fs = $self->{repos}->fs;
-    my $rev = $self->{cgi}->param('rev') || $fs->youngest_rev;
-    my $root = $fs->revision_root ($rev);
+    my $fs   = $self->{repos}->fs;
+    my $rev  = $self->{cgi}->param('rev') || $fs->youngest_rev;
+    my $root = $fs->revision_root($rev);
+    my $path = $self->{path};
 
-    if(! $root->is_file($self->{path})) {
-        SVN::Web::X->throw(error => '(path %1 is not a file in revision %2)',
-			   vars => [$self->{path}, $rev])
+    if(!$root->is_file($path)) {
+        SVN::Web::X->throw(
+            error => '(path %1 is not a file in revision %2)',
+            vars  => [$path, $rev]
+        );
     }
 
-    my $file = $root->file_contents ($self->{path});
+    my $file = $root->file_contents($path);
     local $/;
-    return {mimetype => $root->node_prop ($self->{path},
-					  'svn:mime-type') ||'text/plain',
-	    body => <$file>};
+    return {
+        mimetype => $root->node_prop($path, 'svn:mime-type')
+            || 'text/plain',
+        body => <$file>
+    };
 }
 1;

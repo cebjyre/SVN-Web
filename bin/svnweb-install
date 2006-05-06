@@ -6,6 +6,7 @@ use File::Basename;
 use File::Find;
 
 BEGIN {
+
     # This is a nasty hack.  SVN::Core has a bug.  "perl -MSVN::Core -c -e 1"
     # will dump core.  Something to do with the interaction between "-c"
     # running BEGIN blocks but not running END blocks, or similar.
@@ -13,7 +14,7 @@ BEGIN {
     # Anyway, we want to test to make sure this script compiles cleanly.
     # And we want to use SVN::Web.  Since the two are mutually exclusive,
     # only use SVN::Web (and hence SVN::Core) if we're not compiling.
-    if(! $^C) {
+    if(!$^C) {
         require SVN::Web;
     }
 }
@@ -28,22 +29,29 @@ my %targets = (
     Style    => 'css',
 );
 
-while (my ($from, $to) = each %targets) {
+while(my($from, $to) = each %targets) {
     my $path = $INC{'SVN/Web.pm'};
     $path =~ s{.pm$}{/$from}i or next;
 
-    find({ wanted => sub { 
-      my $dst_path = $File::Find::name;
-      $dst_path =~ s/\Q$path\E/$to/;
+    find(
+        {
+            wanted => sub {
+                my $dst_path = $File::Find::name;
+                $dst_path =~ s/\Q$path\E/$to/;
 
-      if(-d $File::Find::name) {
-          mkdir $dst_path or
-	    warn "mkdir($dst_path) failed: $!\n";
-      } else {
-          copy($File::Find::name, $dst_path) or
-	    warn "Copying $File::Find::name -> $dst_path failed:\n$!\n";
-      }
-    }, no_chdir => 1 }, $path);
+                if(-d $File::Find::name) {
+                    mkdir $dst_path
+                        or warn "mkdir($dst_path) failed: $!\n";
+                } else {
+                    copy($File::Find::name, $dst_path)
+                        or warn
+                        "Copying $File::Find::name -> $dst_path failed:\n$!\n";
+                }
+            },
+            no_chdir => 1
+        },
+        $path
+    );
 }
 
 print $fh <<END;
@@ -73,10 +81,18 @@ log_msg_filters:
     filter: html
   - name: standard
     filter: html_line_break
-  - name: Clickable
-    filter: clickable
-  - name: Clickable::Email
-    filter: filter
+
+# If you have Template::Plugin::Clickable or
+# Template::Plugin::Clickable::Email installed then these are very
+# useful too.
+#
+# To use them, delete this comment block, remove the comments from the
+# start of the next lines, and make sure they follow on immediately
+# from the last non-blank line above.
+#  - name: Clickable
+#    filter: clickable
+#  - name: Clickable::Email
+#    filter: filter
 
 # set your repository path below:
 #
@@ -112,7 +128,7 @@ END
 
 close $fh;
 
-chmod 0755,'index.cgi';
+chmod 0755, 'index.cgi';
 
 # XXX: export the template too
 

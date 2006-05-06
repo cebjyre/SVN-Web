@@ -35,7 +35,7 @@ msgstr "Please select a repository to browse:"
 
 #: ../Template/trac/revision:43 ../Template/trac/revision:62
 msgid "(copied from)"
-msgstr ""
+msgstr "copied from"
 
 #: ../Template/trac/log:12 ../Template/trac/revision:23
 msgid "(date)"
@@ -295,3 +295,10 @@ msgstr "%quant(%1, month, months)"
 
 msgid "(%1 year)"
 msgstr "%quant(%1, year, years)"
+
+msgid "(require %1 failed: %2)"
+msgstr "<tt>%1</tt> could not be 'required' in to Perl.\n\n"
+"The error from Perl was:\n"   
+"\n"
+"<tt>%2</tt>."
+

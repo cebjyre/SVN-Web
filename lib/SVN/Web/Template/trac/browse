@@ -10,7 +10,7 @@
   </form>
 </div>
 
-<div class="title"><a href="[% script %]/[% repos %]/log[% path %][% revstr %]">[%|l%](view revision log)[%END%]</a></div>
+<div class="title"><a href="[% script %]/[% repos %]/log[% path | uri | html %][% revstr %]">[%|l%](view revision log)[%END%]</a></div>
 
 [% IF entries.size == 0 %]
 <p>[%|l%](no directory entries)[%END%]</p>
@@ -30,9 +30,9 @@
     <tr class="[% loop.count % 2 ? "even" : "odd" %]">
       <td class="name">
       [% IF isdir %]
-        <a class="dir" href="[% script %]/[% repos %]/browse[% path %][% name %]/[% revstr %]">[% name %]/</a>
+        <a class="dir" href="[% script %]/[% repos %]/browse[% path | uri | html %][% name | uri | html%]/[% revstr %]">[% name %]/</a>
       [% ELSE %]
-        <a class="file" href="[% script %]/[% repos %]/view[% path %][% name %][% revstr %]">[% name %]</a>
+        <a class="file" href="[% script %]/[% repos %]/view[% path | uri | html%][% name | uri | html %][% revstr %]">[% name %]</a>
       [% END %]
       </td>
       <td class="rev"><a href="[% script %]/[% repos %]/revision?rev=[% rev %]">[% rev %]</a></td>

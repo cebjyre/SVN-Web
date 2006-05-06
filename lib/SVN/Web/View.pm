@@ -1,8 +1,13 @@
 package SVN::Web::View;
+
 use strict;
+use warnings;
+
 use SVN::Core;
 use SVN::Repos;
 use SVN::Fs;
+
+use base 'SVN::Web::action';
 
 =head1 NAME
 
@@ -41,6 +46,11 @@ less than C<rev>.
 =head1 TEMPLATE VARIABLES
 
 =over 8
+
+=item at_head
+
+A boolean value, indicating whether the user is currently viewing the
+HEAD of the file in the repository.
 
 =item rev
 
@@ -83,74 +93,76 @@ None.
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $self = bless {}, $class;
-    %$self = @_;
-
-    return $self;
-}
-
 sub _log {
-    my ($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
-#    my ($self, $rev, $root, $paths, $props) = @_;
+    my($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
+
     return unless $rev > 0;
-#    my ($author, $date, $message) = @{$props}{qw/svn:author svn:date svn:log/};
 
-    my $data = { rev => $rev, author => $author,
-		 date => $date, msg => $msg };
+    my $data = {
+        rev    => $rev,
+        author => $author,
+        date   => $date,
+        msg    => $msg
+    };
 
-    my $root = $self->{repos}->fs()->revision_root($rev);
+    my $root    = $self->{repos}->fs()->revision_root($rev);
     my $subpool = SVN::Pool->new($pool);
-    $data->{paths} = 
-      { map { $_ => { action => $paths->{$_}->action(),
-		      copyfrom => $paths->{$_}->copyfrom_path(),
-		      copyfromrev => $paths->{$_}->copyfrom_rev(),
-		      isdir => $root->check_path($_, $subpool) == $SVN::Node::dir,
-		    }, $subpool->clear() } keys %$paths};
+    $data->{paths} = {
+        map {
+            $_ => {
+                action      => $paths->{$_}->action(),
+                copyfrom    => $paths->{$_}->copyfrom_path(),
+                copyfromrev => $paths->{$_}->copyfrom_rev(),
+                isdir => $root->check_path($_, $subpool) == $SVN::Node::dir,
+                },
+                $subpool->clear()
+            } keys %$paths
+    };
 
     return $data;
+}
+
+sub cache_key {
+    my $self = shift;
+    my $path = $self->{path};
+
+    my(undef, undef, $act_rev, $head) = $self->get_revs();
+
+    return "$act_rev:$head:$path";
 }
 
 sub run {
     my $self = shift;
     my $pool = SVN::Pool->new_default_sub;
-    my $fs = $self->{repos}->fs;
-    my $rev = $self->{cgi}->param('rev') || $fs->youngest_rev;
+    my $fs   = $self->{repos}->fs;
+    my $path = $self->{path};
+
+    my($exp_rev, $yng_rev, $act_rev, $head) = $self->get_revs();
+
+    my $rev = $act_rev;
+
     my $root = $fs->revision_root($rev);
 
-    # Start at $rev, and look backwards for the first interesting
-    # revision number for this file.
-    my $hist = $root->node_history($self->{path});
-    $hist = $hist->prev(0);
-    $rev = ($hist->location())[1];
-
-    # If no rev param was passed in, then $rev is also the file's youngest
-    # rev.  Which means we're at the file's head.  Otherwise, use the fs'
-    # youngest rev as the youngest rev
-    my $youngest_rev;
-    if(! defined $self->{cgi}->param('rev')) {
-      $youngest_rev = $rev;
-    } else {
-      $youngest_rev = $fs->youngest_rev();
-    }
-
     # Get the log for this revision of the file
-    $self->{repos}->get_logs([$self->{path}], $rev - 1, $rev, 1, 0,
-                             sub { $self->{REV} = $self->_log(@_)});
+    $self->{repos}->get_logs([$path], $rev - 1, $rev, 1, 0,
+        sub { $self->{REV} = $self->_log(@_) });
 
     # Get the text for this revision of the file
     $root = $fs->revision_root($rev);
-    my $file = $root->file_contents($self->{path});
+    my $file = $root->file_contents($path);
     local $/;
-    return {template => 'view',
-	    data => { rev => $rev,
-		      youngest_rev => $youngest_rev,
-		      mimetype => $root->node_prop($self->{path},
-						   'svn:mime-type') || 'text/plain',
-		      file => <$file>,
-		      %{$self->{REV}},
-		    }};
+    return {
+        template => 'view',
+        data     => {
+            rev          => $act_rev,
+            youngest_rev => $yng_rev,
+	    at_head      => $head,
+            mimetype     => $root->node_prop($path, 'svn:mime-type')
+                || 'text/plain',
+            file => <$file>,
+            %{ $self->{REV} },
+        }
+    };
 }
 
 1;

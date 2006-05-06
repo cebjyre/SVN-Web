@@ -232,3 +232,44 @@ first line in me
 2nd line in me - mod
 
 
+Revision-number: 3
+Prop-content-length: 250
+Content-length: 250
+
+K 7
+svn:log
+V 151
+Add a directory and a file with spaces in their names, to ensure that spaces
+are properly encoded and decoded through SVN::Web.  Prompted by rt#19093.
+
+K 10
+svn:author
+V 3
+nik
+K 8
+svn:date
+V 27
+2006-05-06T12:29:41.721774Z
+PROPS-END
+
+Node-path: E F
+Node-kind: dir
+Node-action: add
+Prop-content-length: 10
+Content-length: 10
+
+PROPS-END
+
+
+Node-path: E F/test file
+Node-kind: file
+Node-action: add
+Prop-content-length: 10
+Text-content-length: 21
+Text-content-md5: 2d282102fa671256327d4767ec23bc6b
+Content-length: 31
+
+PROPS-END
+This is a test file.
+
+

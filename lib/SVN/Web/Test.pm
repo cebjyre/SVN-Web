@@ -1,3 +1,4 @@
+
 =head1 NAME
 
 SVN::Web::Test - automated web testing for SVN::Web
@@ -20,54 +21,56 @@ use base qw(Test::WWW::Mechanize);
 use CGI;
 $CGI::PERLEX++;
 
-my ($host, $script) = @_;
+my($host, $script) = @_;
 
 sub import {
     my %repos;
     (undef, $host, $script, %repos) = @_;
-    my $config = { actions => {
-			       browse   => { class => 'SVN::Web::Browse' },
-			       checkout => { class => 'SVN::Web::Checkout' },
-			       diff     => { class => 'SVN::Web::Diff' },
-			       list     => { class => 'SVN::Web::List' },
-			       log      => { class => 'SVN::Web::Log' },
-			       revision => { class => 'SVN::Web::Revision' },
-			       rss      => { class => 'SVN::Web::RSS' },
-			       view     => { class => 'SVN::Web::View' },
-			      },
-		   cgi_class   => 'CGI',
-		   templatedirs => [ 'lib/SVN/Web/Template/trac' ],
-		   repos       => \%repos,
-		 };
+    my $config = {
+        actions => {
+            browse   => { class => 'SVN::Web::Browse' },
+            checkout => { class => 'SVN::Web::Checkout' },
+            diff     => { class => 'SVN::Web::Diff' },
+            list     => { class => 'SVN::Web::List' },
+            log      => { class => 'SVN::Web::Log' },
+            revision => { class => 'SVN::Web::Revision' },
+            rss      => { class => 'SVN::Web::RSS' },
+            view     => { class => 'SVN::Web::View' },
+        },
+        cgi_class    => 'CGI',
+        templatedirs => ['lib/SVN/Web/Template/trac'],
+        repos        => \%repos,
+    };
 
-    SVN::Web::set_config ($config);
+    SVN::Web::set_config($config);
 }
 
 sub send_request {
-    my ($self, $request) = @_;
+    my($self, $request) = @_;
 
     my $buf = '';
     my $uri = $request->uri;
     {
-	open my $outfh, '>', \$buf;
-	local *STDOUT = $outfh;
-	$uri =~ s/^$host$script//;
-	$uri =~ s/\?(.*)$//g;
-	local $ENV{QUERY_STRING} = $1 || '';
-	local $ENV{PATH_INFO} = $uri;
-	local $ENV{SCRIPT_NAME} = $script;
-	local $ENV{HTTP_HOST} = $host;
-	local $ENV{REQUEST_METHOD} = 'GET';
-	SVN::Web::run_cgi;
+        open my $outfh, '>', \$buf;
+        local *STDOUT = $outfh;
+        $uri =~ s/^$host$script//;
+        $uri =~ s/\?(.*?)(?:#.*)?$//g;
+        local $ENV{QUERY_STRING}   = $1 || '';
+        local $ENV{PATH_INFO}      = $uri;
+        local $ENV{SCRIPT_NAME}    = $script;
+        local $ENV{HTTP_HOST}      = $host;
+        local $ENV{REQUEST_METHOD} = 'GET';
+        SVN::Web::run_cgi;
     }
 
-    my $response = HTTP::Response->new (200);
+    my $response = HTTP::Response->new(200);
+
     # XXX: HTTP::Message::parse is unhappy with content having :
     $buf =~ s/^(.*\r?\n)\r?\n//;
     my $header = $1;
-    my $msg = HTTP::Message->parse($header);
-    $response->header (%{$msg->headers});
-    $response->content ($buf);
+    my $msg    = HTTP::Message->parse($header);
+    $response->header(%{ $msg->headers });
+    $response->content($buf);
     $response->request($request);
     $response->header("Client-Date" => HTTP::Date::time2str(time));
 

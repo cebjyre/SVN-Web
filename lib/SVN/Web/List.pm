@@ -1,5 +1,10 @@
 package SVN::Web::List;
+
 use strict;
+use warnings;
+
+use base 'SVN::Web::action';
+
 use File::Basename ();
 
 =head1 NAME
@@ -61,36 +66,31 @@ None.
 
 my %default_opts = (redirect_to_browse_when_one_repo => 0);
 
-sub new {
-    my $class = shift;
-    my $self = bless {}, $class;
-    %$self = @_;
-
-    return $self;
-}
-
 sub run {
     my $self = shift;
 
-    $self->{opts} = { %default_opts, %{$self->{opts}} };
+    $self->{opts} = { %default_opts, %{ $self->{opts} } };
 
     my @repos = SVN::Web::repos_list();
 
     # If there's only one repo listed then jump straight to it
     if(@repos == 1 and $self->{opts}{redirect_to_browse_when_one_repo}) {
         my $url = $self->{cgi}->self_url();
-	$url =~ s{/$}{};
-	$url .= "/$repos[0]";
+        $url =~ s{/$}{};
+        $url .= "/$repos[0]";
         print $self->{cgi}->redirect(-uri => $url);
-	return;
+        return;
     }
 
-    return { template => 'list',
-	     data => {
-		      action => 'list',
-		      nonav => 1,
-                      repos => \@repos,
-                      reposcount => scalar @repos}};
+    return {
+        template => 'list',
+        data     => {
+            action     => 'list',
+            nonav      => 1,
+            repos      => \@repos,
+            reposcount => scalar @repos
+        }
+    };
 }
 
 1;
