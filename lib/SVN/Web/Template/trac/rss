@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rdf:RDF
+ xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+ xmlns="http://purl.org/rss/1.0/"
+ xmlns:taxo="http://purl.org/rss/1.0/modules/taxonomy/"
+ xmlns:dc="http://purl.org/dc/elements/1.1/"
+ xmlns:syn="http://purl.org/rss/1.0/modules/syndication/"
+ xmlns:admin="http://webns.net/mvcb/"
+>
+
+<channel rdf:about="[% script %]/[% repos %]/log[% path | uri | html %]">
+  <title>[%|l%](revision log)[%END%] - [% path | uri | html %]</title>
+  <link>[% script %]/[% repos %]/log[% path | uri | html %]</link>
+  <description></description>
+  <dc:date>[% revs.0.date %]</dc:date>
+  [% IF publisher != '' %]<dc:publisher>[% publisher %]</dc:publisher>[% END %]
+  <dc:creator>SVN::Web</dc:creator>
+  <syn:updatePeriod>daily</syn:updatePeriod>
+  <syn:updateFrequency>1</syn:updateFrequency>
+  <syn:updateBase>1901-01-01T00:00+00:00</syn:updateBase>
+  <items>
+    <rdf:Seq>
+    [%- FOREACH revs %]
+      <rdf:li rdf:resource="[% script %]/[% repos %]/revision?rev=[% rev %]" />
+    [%- END %]
+    </rdf:Seq>
+  </items>
+</channel>
+
+[% FOREACH revs %]
+<item rdf:about="[% script %]/[% repos %]/revision?rev=[% rev %]">
+  <title>[% rev %] - [% msg | truncate(80) | html %]</title>
+  <link>[% script %]/[% repos %]/revision?rev=[% rev %]</link>
+  <description>[% msg | log_msg %]</description>
+  <dc:creator>[% author %]</dc:creator>
+  <dc:date>[% date %]</dc:date>
+</item>
+[% END %]
+
+</rdf:RDF>

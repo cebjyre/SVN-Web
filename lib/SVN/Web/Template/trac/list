@@ -1,3 +1,4 @@
+[% PROCESS header %]
 [% IF reposcount %]
 <p>
 [%|l%](choose repos)[%END%]
@@ -13,3 +14,4 @@
 [%|l%](no repos)[%END%]
 </p>
 [% END %]
+[% PROCESS footer %]

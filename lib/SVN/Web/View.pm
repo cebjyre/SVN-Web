@@ -9,6 +9,8 @@ use SVN::Fs;
 
 use base 'SVN::Web::action';
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::View - SVN::Web action to view a file in the repository
@@ -79,7 +81,8 @@ The revision's author.
 
 =item date
 
-The date the revision was committed.
+The date the revision was committed, formatted according to
+L<SVN::Web/"Time and date formatting">.
 
 =item msg
 
@@ -101,7 +104,7 @@ sub _log {
     my $data = {
         rev    => $rev,
         author => $author,
-        date   => $date,
+        date   => $self->format_svn_timestamp($date),
         msg    => $msg
     };
 

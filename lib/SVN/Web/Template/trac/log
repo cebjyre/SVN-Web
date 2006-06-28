@@ -1,7 +1,8 @@
+[% PROCESS header %]
 [% USE cgi = CGI %]
 
 [% IF ! isdir OR at_head %]
-<p>[% IF ! isdir %]<a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a> | [% END %][% IF at_head %]<a href="[% script %]/[% repos %]/rss[% path | uri | html %]">[%|l%](rss)[%END%]</a>[% END %]</p>
+<p>[% IF at_head %]<a href="[% script %]/[% repos %]/rss[% path | uri | html %]"><img src="[% base_uri %]/css/trac/feed-icon-16x16.png" width="16" height="16" alt="" align="absmiddle" /> [%|l%](rss)[%END%]</a>[% IF ! isdir %] | [%END%][% END %][% IF ! isdir %]<a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a>[% END %]</p>
 [% END %]
 
 <div class="title"><form action="[% cgi.self_url %]" method="get">
@@ -32,7 +33,7 @@
 [% IF ! isdir %]
     <td><input type="checkbox" name="revs" value="[% rev %]" /></td>
 [% END %]
-    <td class="date">[% date.replace('T', ' ').replace('\..+', '').replace('-', '/') %]</td>
+    <td class="date">[% date %]</td>
     <td class="rev">[% IF isdir %]
         <a href="[% script %]/[% repos %]/browse[% path | uri | html %]?rev=[% rev %]">[% rev %]</a>
       [% ELSE %]
@@ -65,3 +66,4 @@
 [% IF ! isdir %]
 </form>
 [% END %]
+[% PROCESS footer %]

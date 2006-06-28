@@ -1,3 +1,4 @@
+[% PROCESS header %]
 [% USE cgi = CGI %]
 
 <h1>[%|l(script, repos, rev1, rev2)%](diff range)[%END%]</h1>
@@ -11,3 +12,4 @@
       [% body %]</li>
   </ul>
 </div>
+[% PROCESS footer %]

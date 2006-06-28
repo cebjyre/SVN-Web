@@ -92,7 +92,7 @@ msgstr "Vous ne pouvez parcourir aucun dépôt"
 
 #: ../Template/trac/footer:4
 msgid "(powered by)"
-msgstr "Propulsé par"
+msgstr "Propulsé par SVN::Web"
 
 #: ../Template/trac/revision:11
 msgid "(previous revision)"

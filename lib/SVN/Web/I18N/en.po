@@ -139,7 +139,7 @@ msgstr "Most Recent"
 
 #: ../Template/trac/log:3
 msgid "(rss)"
-msgstr "RSS feed"
+msgstr "RSS Feed"
 
 msgid "(diff range)"
 msgstr "Diff between <a href=\"%1/%2/revision?rev=%3\">%3</a> and <a href=\"%1/%2/revision?rev=%4\">%4</a>"

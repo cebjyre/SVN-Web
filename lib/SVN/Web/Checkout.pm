@@ -10,6 +10,8 @@ use SVN::Repos;
 use SVN::Fs;
 use SVN::Web::X;
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::Checkout - SVN::Web action to checkout a given file

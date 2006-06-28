@@ -11,6 +11,8 @@ use SVN::Repos;
 use SVN::Fs;
 use SVN::Web::X;
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::Revision - SVN::Web action to view a repository revision
@@ -52,7 +54,8 @@ Defaults to 1.
 
 =item rev
 
-The revision to show.  There is no default.
+The revision to show.  If not provided then use the repository's
+youngest revision.
 
 =item context
 
@@ -76,7 +79,8 @@ C<next revision> and C<previous revision> links.
 
 =item date
 
-The date on which the revision was committed.
+The date on which the revision was committed, formatted according to
+L<SVN::Web/"Time and date formatting">.
 
 =item author
 
@@ -156,7 +160,7 @@ sub _log {
     my $data = {
         rev    => $rev,
         author => $author,
-        date   => $date,
+        date   => $self->format_svn_timestamp($date),
         msg    => $msg
     };
     $data->{paths} = {
@@ -184,7 +188,9 @@ sub _log {
 sub cache_key {
     my $self = shift;
 
-    return $self->{cgi}->param('rev');
+    return $self->{cgi}->param('rev') if defined $self->{cgi}->param('rev');
+
+    return $self->{repos}->fs()->youngest_rev();
 }
 
 sub run {
@@ -193,20 +199,17 @@ sub run {
     $self->{opts} = { %default_opts, %{ $self->{opts} } };
 
     my $pool = SVN::Pool->new_default_sub;
-    my $rev  = $self->{cgi}->param('rev')
-        || SVN::Web::X->throw(
-        error => '(no revision)',
-        vars  => []
-        );
+    my $fs   = $self->{repos}->fs();
+    my $yrev = $fs->youngest_rev();
 
-    my $fs           = $self->{repos}->fs();
-    my $youngest_rev = $fs->youngest_rev();
+    my $rev  = $self->{cgi}->param('rev');
+    $rev = $yrev unless defined $rev;
 
     SVN::Web::X->throw(
         error => '(revision %1 does not exist)',
         vars  => [$rev]
         )
-        if $rev > $youngest_rev;
+        if $rev > $yrev;
 
     $self->{repos}->get_logs(['/'], $rev, $rev, 1, 0,
         sub { $self->{REV} = $self->_log(@_) });
@@ -217,7 +220,7 @@ sub run {
         template => 'revision',
         data     => {
             rev          => $rev,
-            youngest_rev => $fs->youngest_rev(),
+            youngest_rev => $yrev,
             %{ $self->{REV} }
         }
     };
@@ -277,7 +280,7 @@ sub make_diffs {
             # Skip the diff if either of the files have a non-text MIME type
             my $mt1 = $root1->node_prop($path, 'svn:mime-type')
                 || 'text/plain';
-            my $mt2 = $root2->node_prop($path, 'svn:mime-type')
+            my $mt2 = $root2->node_prop($src, 'svn:mime-type')
                 || 'text/plain';
             next if($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
 

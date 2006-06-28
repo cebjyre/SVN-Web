@@ -9,6 +9,8 @@ use SVN::Fs;
 
 use base 'SVN::Web::action';
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::Log - SVN::Web action to show log messages for a repository path
@@ -59,7 +61,6 @@ A boolean value, true if the given path is a directory.
 
 The repository revision that the log starts with.
 
-
 =item revs
 
 A list of hashes.  Each entry corresponds to a particular repository revision,
@@ -81,7 +82,8 @@ The author of this change.
 
 =item date
 
-The date of this change.
+The date of this change, formatted according to
+L<SVN::Web/"Time and date formatting">.
 
 =item msg
 
@@ -138,7 +140,7 @@ sub _log {
     my $data = {
         rev    => $rev,
         author => $author,
-        date   => $date,
+        date   => $self->format_svn_timestamp($date),
         msg    => $msg
     };
 

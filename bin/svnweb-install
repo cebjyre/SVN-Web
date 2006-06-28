@@ -74,6 +74,24 @@ actions:
   view:
     class: SVN::Web::View
 
+# Languages.  Specify the localisation files, and how they should be described
+# in the web interface.  You probably don't want to change this.
+languages:
+  en: English
+  fr: Fran&ccedil;ais
+  zh_cn: Chinese (Simplified)
+  zh_tw: Chinese (Traditional)
+
+# Set the default language here.  If not set, English is used
+#default_language: fr
+
+# Time and date formatting
+timedate_format: '%Y/%m/%d %H:%M:%S'
+
+# Timezone.  Uncomment the next line to use the server's timezone instead
+# of UTC.  Or, specify a literal timezone (C<timezone: 'EST'> for example)
+#timezone: local
+
 # Suggested minimum filters to run log messages through.  Note that
 # it is not fatal if one of these filters is not installed.
 log_msg_filters:

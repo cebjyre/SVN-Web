@@ -12,6 +12,8 @@ use SVN::Web::X;
 
 use Time::Local;
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::Browse - SVN::Web action to browse a Subversion repository
@@ -87,7 +89,8 @@ entry.
 
 =item date
 
-The date of the entry's most recent interesting revision.
+The date of the entry's most recent interesting revision, formatted
+according to L<SVN::Web/"Time and date formatting">.
 
 =item msg
 
@@ -184,6 +187,7 @@ sub run {
         my($y, $m, $d, $h, $M, $s)
             = $_->{date_modified} =~ /^(....)-(..)-(..)T(..):(..):(..)/;
         my $time = timegm($s, $M, $h, $d, $m - 1, $y);
+	$_->{date_modified} = $self->format_svn_timestamp($_->{date_modified});
         $_->{age} = time() - $time;
         $_->{msg} = $fs->revision_prop($_->{rev}, 'svn:log');
 

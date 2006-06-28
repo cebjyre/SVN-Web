@@ -7,6 +7,8 @@ use base 'SVN::Web::action';
 
 use File::Basename ();
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::List - SVN::Web action to list available repositories

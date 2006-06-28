@@ -9,7 +9,9 @@ use SVN::Core;
 use SVN::Repos;
 use YAML ();
 use Template;
-use File::Spec::Unix;
+use File::Spec;
+use POSIX ();
+
 use SVN::Web::X;
 eval 'use FindBin';
 {
@@ -28,7 +30,757 @@ eval 'use FindBin';
 use constant mod_perl_2 =>
     (exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2);
 
-our $VERSION = '0.47';
+our $VERSION = 0.48;
+
+my $template;
+my $config;
+
+my %REPOS;
+
+sub load_config {
+    my $file = shift || 'config.yaml';
+    $config ||= YAML::LoadFile($file);
+
+   # Deal with possibly conflicting 'templatedir' and 'templatedirs' settings.
+
+    # If neither of them are set, use 'templatedirs'
+    if(!exists $config->{templatedir} and !exists $config->{templatedirs}) {
+        $config->{templatedirs} = ['template/trac'];
+    }
+
+    # If 'templatedir' is the only one set, use it.
+    if(exists $config->{templatedir} and !exists $config->{templatedirs}) {
+        $config->{templatedirs} = [$config->{templatedir}];
+        delete $config->{templatedir};
+    }
+
+    # If they're both set then throw an error
+    if(exists $config->{templatedir} and exists $config->{templatedirs}) {
+        die "templatedir and templatedirs both defined in config.yaml";
+    }
+
+    # Handle tt_compile_dir.  If it doesn't exist then set it to undef.
+    # If it does exist, and is defined, append a '.' and the current
+    # real UID, to help ensure uniqueness.
+    if(!exists $config->{tt_compile_dir}) {
+        $config->{tt_compile_dir} = undef;    # undef == no compiling
+    } else {
+        if(defined $config->{tt_compile_dir}) {
+            $config->{tt_compile_dir} .= '.' . $<;
+        }
+    }
+
+    # Handle timedate_format
+    if(! exists $config->{timedate_format}) {
+	$config->{timedate_format} = '%Y/%m/%d %H:%M:%S';
+    }
+
+    # Set the timezone, if not already specified.
+    $config->{timezone} = '' unless exists $config->{timezone};
+
+    # If cache/opts/directory_umask is configured, and it has a leading
+    # 0 then ensure it's treated as an octal number.
+    $config->{cache}{opts}{directory_umask} =
+      oct($config->{cache}{opts}{directory_umask})
+	if exists $config->{cache}{opts}{directory_umask}
+	  and $config->{cache}{opts}{directory_umask} =~ /^0/;;
+
+    return;
+}
+
+sub set_config {
+    $config = shift;
+}
+
+sub get_config {
+    return $config;
+}
+
+my $repospool = SVN::Pool->new;
+
+sub get_repos {
+    my($repos) = @_;
+
+    SVN::Web::X->throw(
+        error => '(unconfigured repository)',
+        vars  => []
+        )
+        unless $config->{repos} || $config->{reposparent};
+
+    my $repo_path =
+        $config->{reposparent}
+        ? "$config->{reposparent}/$repos"
+        : $config->{repos}{$repos};
+
+    SVN::Web::X->throw(
+        error => '(no such repo %1 %2)',
+        vars  => [$repos, $repo_path]
+        )
+        unless($config->{reposparent}
+        && -d "$config->{reposparent}/$repos")
+        || exists $config->{repos}{$repos} && -d $config->{repos}{$repos};
+
+    $repo_path =~ s{/$}{}g;	# Trim trailing '/', SVN::Repos::open fails
+				# otherwise
+
+    eval { $REPOS{$repos} ||= SVN::Repos::open($repo_path, $repospool); };
+
+    if($@) {
+        my $e = $@;
+        SVN::Web::X->throw(
+            error => '(SVN::Repos::open failed: %1 %2)',
+            vars  => [$repo_path, $e]
+        );
+    }
+
+    if($config->{block}) {
+        foreach my $blocked (@{ $config->{block} }) {
+            delete $REPOS{$blocked};
+        }
+    }
+}
+
+sub repos_list {
+    load_config('config.yaml');
+
+    my @repos;
+    if($config->{reposparent}) {
+        opendir my $dh, "$config->{reposparent}"
+            or SVN::Web::X->throw(
+            error => '(opendir reposparent %1 %2)',
+            vars  => [$config->{reposparent}, $!]
+            );
+
+        foreach my $dir (grep { -d "$config->{reposparent}/$_" && !/^\./ }
+            readdir $dh) {
+            push @repos, $dir;
+        }
+    } else {
+        @repos = keys %{ $config->{repos} };
+    }
+
+    my %blocked = map { $_ => 1 } @{ $config->{block} };
+
+    return sort grep { !$blocked{$_} } @repos;
+}
+
+sub get_handler {
+    my $cfg = shift;
+    my $pkg;
+
+    if(exists $config->{actions}{ $cfg->{action} }) {
+        if(ref($config->{actions}{ $cfg->{action} }) eq 'HASH') {
+            if(exists $config->{actions}{ $cfg->{action} }{class}) {
+                $pkg = $config->{actions}{ $cfg->{action} }{class};
+            }
+        }
+    }
+
+    unless($pkg) {
+        $pkg = $cfg->{action};
+        $pkg =~ s/^(\w)/\U$1/;
+        $pkg = __PACKAGE__ . "::$pkg";
+    }
+    eval "require $pkg && $pkg->can('run')"
+        or SVN::Web::X->throw(
+        error => '(missing package %1 for action %2: %3)',
+        vars  => [$pkg, $cfg->{action}, $@]
+        );
+    my $repos = $cfg->{repos} ? $REPOS{ $cfg->{repos} } : undef;
+    return $pkg->new(
+        %$cfg,
+        reposname => $cfg->{repos},
+        repos     => $repos,
+        config    => $config
+    );
+}
+
+sub run {
+    my $cfg = shift;
+
+    my $pool = SVN::Pool->new_default;
+
+    my $obj;
+    my $html;
+
+    my $cache;
+
+    if(defined $config->{cache}{class}) {
+	eval "require $config->{cache}{class}"
+	  or SVN::Web::X->throw(error => '(require %1 failed: %2)',
+				vars  => [$config->{cache}{class}, $@]
+			       );
+
+	$config->{cache}{opts} = {}  unless exists $config->{cache}{opts};
+	$config->{cache}{opts}{namespace} = $cfg->{repos};
+	$cache = $config->{cache}{class}->new($config->{cache}{opts});
+    }
+
+    if(defined $cfg->{repos} && length $cfg->{repos}) {
+        get_repos($cfg->{repos});
+    }
+
+    if($cfg->{repos} && $REPOS{ $cfg->{repos} }) {
+        @{ $cfg->{navpaths} } = File::Spec::Unix->splitdir($cfg->{path});
+        shift @{ $cfg->{navpaths} };
+
+        # should use attribute or things alike
+        $obj = get_handler(
+            {   %$cfg,
+                opts => exists $config->{actions}{ $cfg->{action} }{opts}
+                ? $config->{actions}{ $cfg->{action} }{opts}
+                : {},
+            }
+        );
+    } else {
+        $cfg->{action} = 'list';
+        $obj = get_handler(
+            {   %$cfg,
+                opts => exists $config->{actions}{ $cfg->{action} }{opts}
+                ? $config->{actions}{ $cfg->{action} }{opts}
+                : {},
+            }
+        );
+    }
+
+    # Determine the language to use
+    my $lang = get_language($cfg->{cgi}, $config->{languages},
+			    $config->{default_language});
+
+    $cfg->{lang} = $lang;	# Note the preference, stored in a cookie
+				# later
+
+    loc_lang($lang);		# Set the localisation language
+
+    # Generate output, from the cache if necessary.
+
+    # Does the object support caching?  If so, get the cache key
+    my $cache_key;
+    if(defined $cache and $obj->can('cache_key')) {
+	$cache_key = join(':', $cfg->{action}, $lang) . ':' . $obj->cache_key();
+    }
+
+    # If there's a key, retrieve the data from the cache
+    $html = $cache->get($cache_key) if defined $cache_key;
+
+    # No data?  Get the object to generate it, then cache it
+    if(! defined $html) {
+	$html = $obj->run();
+
+	if(defined $cache_key) {
+	    $cache->set($cache_key, $html, $cfg->{cache}{expires_in});
+	}
+    }
+
+    $pool->clear;
+    return $html;
+}
+
+sub get_language {
+    my $obj          = shift;	# CGI or Apache instance
+    my $languages    = shift;	# Hash ref of valid langauges
+    my $default_lang = shift;	# Default language
+
+    my $lang = $obj->param('lang');
+
+    # If lang was included in the query string then delete it now we've
+    # got it.  This stops it showing up in from calls to self_url().  Have
+    # to do this in two different ways, depending on whether this is an
+    # Apache::Request or a CGI object.
+    if(defined $lang) {
+	if(ref($obj) eq 'Apache::Request') {
+	    my $table = $obj->parms();
+	    delete $table->{lang};
+	} else {
+	    $obj->delete('lang'); # Remove from self_url() invocations
+	}
+    }
+
+    # If no valid lang=.. param was found then check the user's cookies
+    if(! defined $lang) {
+	if(ref($obj) eq 'Apache::Request') {
+	    my $cookies = Apache::Cookie->fetch();
+	    if(defined $cookies->{'svnweb-lang'}) {
+		$lang = $cookies->{'svnweb-lang'}->value();
+	    }
+	} else {
+	    $lang = $obj->cookie('svnweb-lang');
+	}
+    }
+
+    # If $lang is not defined, or if it's not in the hash of valid languages
+    # then use the default configured language, falling back to English as
+    # a last resort.
+    if(! defined $lang or ! exists $languages->{$lang}) {
+	$lang = $default_lang;
+	$lang = 'en' unless defined $lang;
+    }
+
+    die "lang is not defined" unless defined $lang;
+
+    return $lang;
+}
+
+sub cgi_output {
+    my($cfg, $html) = @_;
+
+    return unless defined $html;
+
+    my @cookies = ();
+    push @cookies, $cfg->{cgi}->cookie(-name  => 'svnweb-lang',
+				       -value => $cfg->{lang},
+				      );
+
+    if(ref($html)) {
+        print $cfg->{cgi}->header(
+            -charset => $html->{charset}  || 'UTF-8',
+            -type    => $html->{mimetype} || 'text/html',
+	    -cookie  => \@cookies,
+        );
+
+        if($html->{template}) {
+            $template->process($html->{template},
+                { %$cfg, %{ $html->{data} } })
+                or die "Template::process() error: " . $template->error;
+        } else {
+            print $html->{body};
+        }
+    } else {
+        print $cfg->{cgi}->header(
+            -charset => 'UTF-8',
+            -type    => 'text/html',
+	    -cookie  => \@cookies,
+        );
+        print $html;
+    }
+}
+
+sub mod_perl_output {
+    my($cfg, $html) = @_;
+
+    my @cookies = ();
+
+    push @cookies, Apache::Cookie->new($cfg->{request},
+				       -name  => 'svnweb-lang',
+				       -value => $cfg->{lang},
+				      );
+
+    $_->bake() foreach @cookies;
+
+    if(ref($html)) {
+        my $content_type = $html->{mimetype} || 'text/html';
+        $content_type .= '; charset=';
+        $content_type .= $html->{charset} || 'UTF-8';
+        $cfg->{request}->content_type($content_type);
+
+	if(mod_perl_2) {
+	    $cfg->{request}->headers_out();
+	} else {
+	    $cfg->{request}->send_http_header();
+	}
+
+        if($html->{template}) {
+            $template ||= get_template();
+            $template->process($html->{template},
+                { %$cfg, %{ $html->{data} } },
+                $cfg->{request})
+                or die $template->error;
+        } else {
+            $cfg->{request}->print($html->{body});
+        }
+    } else {
+        $cfg->{request}->content_type('text/html; charset=UTF-8');
+
+	if(mod_perl_2) {
+	    $cfg->{request}->headers_out();
+	} else {
+	    $cfg->{request}->send_http_header();
+	}
+
+        $cfg->{request}->print($html);
+    }
+}
+
+our $pool;    # global pool for holding opened repos
+
+sub get_template {
+    Template->new(
+        {   INCLUDE_PATH => $config->{templatedirs},
+            COMPILE_DIR  => $config->{tt_compile_dir},
+            FILTERS      => {
+                l       => ([\&loc_filter, 1]),
+                log_msg => \&log_msg_filter,
+            }
+        }
+    );
+}
+
+sub run_cgi {
+    my %opts = @_;
+    die $@ if $@;
+    $pool ||= SVN::Pool->new_default;
+    load_config('config.yaml');
+    $config->{$_} = $opts{$_} foreach keys %opts;
+    $template               ||= get_template();
+    $config->{diff_context} ||= 3;
+
+    # Pull in the configured CGI class.  Propogate any errors back, and
+    # call the correct import() routine.
+    #
+    # This is more complicated than it should be.  If $config->{cgi_class}
+    # is defined then use that.  If not, use CGI::Fast.  If that can't be
+    # loaded then use CGI.
+    #
+    # There's a problem with (at least) CGI::Fast.  It's possible for the
+    # require() to fail, but for CGI::Fast's entry in %INC to be populated.
+    # This seems to happen when CGI::Fast loads, but its dependency (such
+    # as FCGI) fails to load.  So if the require() fails for any reason
+    # we explicitly remove the %INC entry.
+
+    my $cgi_class;
+    my $eval_result;
+
+    if(exists $config->{cgi_class}) {
+        $eval_result = eval "require $config->{cgi_class}";
+        die $@ if $@;
+        $cgi_class = $config->{cgi_class};
+    } else {
+        foreach('CGI::Fast', 'CGI') {
+            $eval_result = eval "require $_";
+            if($@) {
+                my $path = $_;
+                $path =~ s{::}{/}g;
+                $path .= '.pm';
+                delete $INC{$path};
+            } else {
+                $cgi_class = $_;
+                last;
+            }
+        }
+    }
+
+    die "Could not load a CGI class" unless $eval_result;
+    $cgi_class->import();
+
+    # Save the selected module so that future calls to this routine
+    # don't waste time trying to find the correct class.
+    $config->{cgi_class} = $cgi_class unless exists $config->{cgi_class};
+
+    while(my $cgi = $cgi_class->new) {
+        my($html, $cfg);
+
+	$cfg = { style     => $config->{style},
+		 cgi       => $cgi,
+		 languages => $config->{languages},
+	       };
+
+        eval {
+	    my($action, $base, $repo, $script, $path) = crack_url($cgi);
+
+            SVN::Web::X->throw(
+                error => '(action %1 not supported)',
+                vars  => [$action]
+                )
+                unless exists $config->{actions}{ lc($action) };
+
+            $cfg->{repos}    = $repo;
+	    $cfg->{action}   = $action;
+	    $cfg->{path}     = $path;
+	    $cfg->{script}   = $script;
+	    $cfg->{base_uri} = $base;
+
+            $html = run($cfg);
+        };
+
+        my $e;
+        if($e = SVN::Web::X->caught()) {
+            $html->{template} = 'x';
+            $html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
+        } else {
+            if($@) {
+                $html->{template} = 'x';
+                $html->{data}{error_msg} = $@;
+            }
+        }
+
+        cgi_output($cfg, $html);
+        last if $cgi_class eq 'CGI';
+    }
+}
+
+sub loc_filter {
+    my $context = shift;
+    my @args    = @_;
+    return sub { loc($_[0], @args) };
+}
+
+# A meta-filter for log messages.  Processes a list of hashes.  Each hash
+# has (at least) 'name' and 'filter' keys.  The 'name' is the Perl module
+# that implements the plugin.  The 'filter' key is the name of the plugin's
+# method that does the filtering.
+#
+# The optional 'opts' key is a list of option key/value pairs to pass
+# to the filter.
+sub log_msg_filter {
+    my $text = shift;
+
+    return $text if !defined $config->{log_msg_filters};
+
+    my $plugin;
+    my @filters = @{ $config->{log_msg_filters} };
+    my $context = $template->context();
+
+    foreach my $filter_spec (@filters) {
+        if($filter_spec->{name} ne 'standard') {
+            eval {    # Make sure plugin is available, skip if not
+                $plugin = $context->plugin($filter_spec->{name});
+            };
+            if($@) {
+                warn "Plugin $filter_spec->{name} is not available\n";
+                next;
+            }
+        }
+
+        if(defined $plugin and $plugin->can('filter')) {
+            $text = $plugin->filter($text, [], $filter_spec->{opts});
+        } else {
+            my $filter = $context->filter($filter_spec->{filter},
+                $filter_spec->{opts})
+                || next;
+            $text = $filter->($text);
+        }
+    }
+    return $text;
+}
+
+# Crack a URL and determine the components we need.  Takes either a CGI
+# or Apache object as the only argument, so this is misnamed.
+sub crack_url {
+    my $obj = shift;
+
+#    warn "REF: ", ref($obj), "\n";
+
+    my($location, $filename, $path_info, $uri);
+
+    if(ref($obj) eq 'Apache') {
+	$location  = $obj->location();
+	$filename  = $obj->filename();
+	$path_info = $obj->path_info();
+	$uri       = $obj->uri();
+    } else {
+	# For compatability with Apache::Request->filename():
+	# 1. $location is the current working directory
+	# 2. $filename is $location + the first component of path_info()
+	$location  = POSIX::getcwd();
+	
+	# Split path_info, keeping trailing fields
+	my @path = split('/', $obj->path_info(), -1);
+	$filename = $location;
+	if($#path) {
+	    shift @path;	# Leading empty null field
+	    if(defined $path[0]) {
+		$filename .= '/' . shift @path;
+	    }
+	}
+
+	$path_info = '/' . join('/', @path);
+	$uri       = $obj->url(-relative => 1, -path_info => 1);
+    }
+
+#    warn "LOCATION: $location\n";
+#    warn "FILENAME: $filename\n";
+#    warn "PATH_INFO: $path_info\n";
+#    warn "URI: $uri\n";
+
+    my($action, $base, $repo, $script, $path);
+
+    # Determine $repo.
+    #
+    # This is used as the key in to the hash of configured repositories.
+    # It may be the empty string, in which case the action to run is
+    # the 'list repositories' action.
+    if($location eq $filename) {
+	$repo   = '';		# No repo, show repo list
+	$action = 'list';
+    } else {
+	$repo = $filename;
+	$repo =~ s{^$location/}{}; # Remove the location
+    }
+
+#    warn "REPO: $repo\n";
+
+    # Determine $action
+    #
+    # This will be used as the key in to the hash of configured actions
+    # and their classes.  If no action is included in the URL then the
+    # default action is 'browse'.
+    if(! defined $action) {
+	if($path_info eq '/' or $path_info eq '') {
+	    $action = 'browse';
+	} else {
+	    my @path = split('/', $path_info);
+	    $action = $path[1];
+	}
+    }
+
+#    warn "ACTION: $action\n";
+
+    # Determine $path
+    #
+    # This is the path in the repository that we will be acting on.  Some
+    # actions don't need this set.
+    if($action eq 'list') {
+	$path = '/';
+    } else {
+	if($path_info eq '' or $path_info eq '/') {
+	    $path = '/';
+	} else {
+	    $path = $path_info;
+	    $path =~ s{^/$action}{};
+	}
+    }
+
+    # Unescape it, as it will have been escaped on the web page
+    $path = uri_unescape($path);
+
+#    warn "PATH: $path\n";
+
+    # Determine $script
+    #
+    # $script is the URI that points to the SVN::Web script.  If this is
+    # CGI then it's something like '/svnweb/index.cgi'.  If it's an Apache
+    # handler then it will be a directory reference, like '/svnweb', or
+    # possibly '/'.
+    #
+    # In the CGI case this is just the SCRIPT_NAME environment variable.
+    # There's no Apache equivalent, so take the URI, and starting from the
+    # right end, remove the path, the action, and the repository name.  The
+    # result is the root URI for the handler.
+    if(ref($obj) eq 'Apache') {
+	$script = $uri;
+	$script =~ s/$path$//;
+	$script =~ s{/$action$}{};
+	$script =~ s{/$repo$}{};
+    } else {
+	$script = $ENV{SCRIPT_NAME};
+    }
+
+    $script =~ s{/$}{};		# Remove trailing slash
+
+#    warn "SCRIPT: $script\n";
+
+    # Determine $base
+    #
+    # $base is the URI that points to the directory that contains index.cgi,
+    # config.yaml, css/, etc.  It's needed to generate links to the .css
+    # files.
+
+    # In all cases, $base is a substring of $script.  In the mod_perl and
+    # svnweb-server cases it's identical
+    $base = $script;		# Only in mod_perl case
+
+    # If we're running as a CGI then SCRIPT_FILENAME will (or should)
+    # be set in the environment.  If it is, find the filename component,
+    # which should be the name of this script, and remove that component
+    # from $base.
+    #
+    # This turns '/svnweb/index.cgi' into '/svnweb/'.  We go through these
+    # shenanigans so that the script can be called something other than
+    # index.cgi.
+    if(ref($obj) ne 'Apache') {
+	if(exists $ENV{SCRIPT_FILENAME}) {
+	    my $path = $ENV{SCRIPT_FILENAME};
+	    my(undef, undef, $file) = File::Spec->splitpath($path);
+	    $base =~ s/$file$//;
+	} else {
+#	    warn 'SCRIPT_FILENAME not set in environment, assuming script is called index.cgi';
+	    $base =~ s/index.cgi$//;
+	}
+    }
+    $base =~ s{/$}{};		# Remove trailing slash
+
+#    warn "BASE: $base\n";
+
+    return($action, $base, $repo, $script, $path);
+}
+
+sub handler {
+    my $ok;
+    require CGI;
+
+    eval {
+        if(mod_perl_2) {
+            require Apache2::RequestRec;
+            require Apache2::RequestUtil;
+            require Apache2::RequestIO;
+            require Apache2::Response;
+            require Apache2::Request;
+            require Apache2::Const;
+            Apache2::Const->import(-compile => qw(OK DECLINED));
+            $ok = &Apache2::Const::OK;
+        } else {
+            require Apache::Request;
+            require Apache::Constants;
+	    require Apache::Cookie;
+            Apache::Constants->import(qw(OK DECLINED));
+            $ok = &Apache::Constants::OK;
+        }
+    };
+
+    die $@ if $@;		# Fail if the mod_perl imports failed
+
+    my $r = shift;
+
+    my $apr = Apache::Request->new($r);
+
+    my($action, $base, $repo, $script, $path) = crack_url($r);
+
+    chdir($r->location());
+    $pool ||= SVN::Pool->new_default;
+    load_config('config.yaml');
+
+    my($html, $cfg);
+
+    $cfg = { style     => $config->{style},
+	     cgi       => $apr,
+	     languages => $config->{languages},
+	     request   => $r,
+	   };
+
+    eval {
+	SVN::Web::X->throw(
+	    error => '(action %1 not supported)',
+            vars  => [$action]
+            )
+	    unless exists $config->{actions}{ lc($action) };
+
+	$cfg->{repos}    = $repo;
+	$cfg->{action}   = $action;
+	$cfg->{path}     = $path;
+	$cfg->{script}   = $script;
+	$cfg->{base_uri} = $base;
+
+        $html = run($cfg);
+    };
+
+    my $e;
+    if($e = SVN::Web::X->caught()) {
+        $html->{template} = 'x';
+        $html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
+    } else {
+	if($@) {
+	    $html->{template} = 'x';
+	    $html->{data}{error_msg} = $@;
+	}
+    }
+
+    mod_perl_output($cfg, $html);
+    return $ok;
+}
+
+1;
+
+__END__
 
 =head1 NAME
 
@@ -119,15 +871,21 @@ when, by who.
 
 =item *
 
+Generating RSS feeds of commits, down to the granularity of individual
+files.  The RSS feeds are auto-discoverable in modern web browsers.
+
+=item *
+
 Viewing everything that was changed in a revision, and step through revisions
 one at a time, viewing the history of the repository.
 
 =item *
 
-A templated and fully localised interface.  The look-and-feel of an
-SVN::Web installation can be changed without writing any code, and all
-strings in the interface are stored in a separate file, to make localising
-to different languages easier.
+Viewing the interface in a number of different languages.  SVN::Web's
+interface is fully templated and localised, allowing you to change the
+look-and-feel without writing any code; all strings in the interface
+are stored in a separate file, to make localising to different
+languages easier.
 
 =item *
 
@@ -144,9 +902,9 @@ else you wish to make clickable.
 
 =item *
 
-Internally, SVN::Web caches most of the data it gets from the repository,
-helping to speed up repeated visits to the same page, and reducing the
-impact on your repository server.
+Caching.  Internally, SVN::Web caches most of the data it gets from
+the repository, helping to speed up repeated visits to the same page,
+and reducing the impact on your repository server.
 
 =item *
 
@@ -231,6 +989,37 @@ C<templatedirs> so their templates are found.
 
 For more information about writing your own templates see
 L</"ACTIONS, SUBCLASSES, AND URLS">.
+
+=head2 Languages
+
+SVN::Web's interface is fully localised and ships with a number of
+translations.  The default web interface allows the user to choose
+from the available localisations at will, and the user's choice is
+saved in a cookie.
+
+Two options control SVN::Web's localisations.
+
+The first, C<languages>, specifies the localisations that are considered
+I<available>.  This is a hash.  The keys are the basenames of available
+localisation files, the values are the language name as it should appear
+in the interface.  C<svnweb-install> will have set this to a default
+value.
+
+To find the available localisation files look in the F<po/> directory
+that was created in the directory in which you ran C<svnweb-install>.
+For example, the default (as of SVN::Web 0.48) is:
+
+  languages:
+    en: English
+    fr: Fran&ccedil;ais
+    zh_cn: Chinese (Simplified)
+    zh_tw: Chinese (Traditional)
+
+The second, C<default_language>, specifies the language to use if the
+user has not selected one.  The value for this option should be one of
+the keys defined in C<languages>.  For example;
+
+  default_language: fr
 
 =head2 Data cache
 
@@ -379,6 +1168,64 @@ if you have a web-based issue tracking system, you might write a plugin
 that recognises text of the form C<t#1234> and turns it in to a link to
 ticket #1234 in your ticketing system.  L<Template::Plugin::Subst> might
 be helpful if you do this.
+
+=head2 Time and date formatting
+
+There are a number of places in the web interface where SVN::Web will
+display a timestamp from Subversion.
+
+Internally, Subversion stores times in UTC.  You may wish to show them in
+your local timezone (or some other timezone).  You may also wish to change
+the formatting of the timestamp.
+
+To do this use the C<timezone> and C<timedate_format> configuration options.
+
+C<timezone> takes one of three settings.
+
+=over
+
+=item 1.
+
+If not set, or set to the empty string, SVN::Web will show all times in
+UTC.  This is the default behaviour.
+
+=item 2.
+
+If set to the string C<local> then SVN::Web will adjust all timestamps to
+the server's local timezone.
+
+=item 3.
+
+If set to a timezone name, such as C<BST> or C<EST>, then SVN::Web will
+adjust all timestamps to that timezone.
+
+=back
+
+When displaying timestamps SVN::Web uses the L<POSIX> C<strftime()>
+function.  You can change the format string that is provided, thereby
+changing how the timestamp is formatted.  Use the C<timedate_format>
+configuration directive for this.
+
+The default value is:
+
+  timedate_format: '%Y/%m/%d %H:%M:%S'
+
+Using this format, a quarter past one in the afternoon on the 15th of
+May 2006 would appear as:
+
+  2006/05/15 13:15:00
+
+If instead that was:
+
+  timedate_format: '%a. %b %d, %l:%M%p'
+
+then the same timestamp would appear as:
+
+  Mon. May 15, 1:15pm
+
+Note that strftime(3) on different operating systems supports different
+format specifiers, so consult your system's strftime(3) manual page to
+see which specifiers are available.
 
 =head2 Actions, action classes, and action options
 
@@ -532,9 +1379,9 @@ about customising the templates used for each module.
 
 =head1 WEB SERVERS
 
-Here is some information on configuring common webservers to run SVN::Web.
-In all cases, C</path/to/svnweb> in the examples is the directory you ran
-C<svnweb-install> in, and contains F<config.yaml>.
+This section explains how to configure some common webservers to run
+SVN::Web.  In all cases, C</path/to/svnweb> in the examples is the
+directory you ran C<svnweb-install> in, and contains F<config.yaml>.
 
 If you've configured a web server that isn't listed here for SVN::Web,
 please send in the instructions so they can be included in a future
@@ -598,542 +1445,24 @@ With that configuration the full path to browse the repository would be:
 
   http://server/svnweb/
 
-=cut
+=head2 Apache with FastCGI
 
-my $template;
-my $config;
+SVN::Web works with Apache and FastCGI.  The following Apache configuration
+is suitable.
 
-my %REPOS;
+  FastCgiServer /path/to/svnweb/index.cgi
+  ScriptAlias /svnweb /path/to/svnweb/index.cgi
 
-sub load_config {
-    my $file = shift || 'config.yaml';
-    $config ||= YAML::LoadFile($file);
+  Alias /svnweb/css /path/to/svnweb/css
+  <Directory /path/to/svnweb/css>
+     SetHandler default-handler
+  </Directory>
 
-   # Deal with possibly conflicting 'templatedir' and 'templatedirs' settings.
+=head1 MAILING LIST
 
-    # If neither of them are set, use 'templatedirs'
-    if(!exists $config->{templatedir} and !exists $config->{templatedirs}) {
-        $config->{templatedirs} = ['template/trac'];
-    }
-
-    # If 'templatedir' is the only one set, use it.
-    if(exists $config->{templatedir} and !exists $config->{templatedirs}) {
-        $config->{templatedirs} = [$config->{templatedir}];
-        delete $config->{templatedir};
-    }
-
-    # If they're both set then throw an error
-    if(exists $config->{templatedir} and exists $config->{templatedirs}) {
-        die "templatedir and templatedirs both defined in config.yaml";
-    }
-
-    # Handle tt_compile_dir.  If it doesn't exist then set it to undef.
-    # If it does exist, and is defined, append a '.' and the current
-    # real UID, to help ensure uniqueness.
-    if(!exists $config->{tt_compile_dir}) {
-        $config->{tt_compile_dir} = undef;    # undef == no compiling
-    } else {
-        if(defined $config->{tt_compile_dir}) {
-            $config->{tt_compile_dir} .= '.' . $<;
-        }
-    }
-
-    return;
-}
-
-sub set_config {
-    $config = shift;
-}
-
-sub get_config {
-    return $config;
-}
-
-my $repospool = SVN::Pool->new;
-
-sub get_repos {
-    my($repos) = @_;
-
-    SVN::Web::X->throw(
-        error => '(unconfigured repository)',
-        vars  => []
-        )
-        unless $config->{repos} || $config->{reposparent};
-
-    my $repo_path =
-        $config->{reposparent}
-        ? "$config->{reposparent}/$repos"
-        : $config->{repos}{$repos};
-
-    SVN::Web::X->throw(
-        error => '(no such repo %1 %2)',
-        vars  => [$repos, $repo_path]
-        )
-        unless($config->{reposparent}
-        && -d "$config->{reposparent}/$repos")
-        || exists $config->{repos}{$repos} && -d $config->{repos}{$repos};
-
-    eval { $REPOS{$repos} ||= SVN::Repos::open($repo_path, $repospool); };
-
-    if($@) {
-        my $e = $@;
-        SVN::Web::X->throw(
-            error => '(SVN::Repos::open failed: %1 %2)',
-            vars  => [$repo_path, $e]
-        );
-    }
-
-    if($config->{block}) {
-        foreach my $blocked (@{ $config->{block} }) {
-            delete $REPOS{$blocked};
-        }
-    }
-}
-
-sub repos_list {
-    load_config('config.yaml');
-
-    my @repos;
-    if($config->{reposparent}) {
-        opendir my $dh, "$config->{reposparent}"
-            or SVN::Web::X->throw(
-            error => '(opendir reposparent %1 %2)',
-            vars  => [$config->{reposparent}, $!]
-            );
-
-        foreach my $dir (grep { -d "$config->{reposparent}/$_" && !/^\./ }
-            readdir $dh) {
-            push @repos, $dir;
-        }
-    } else {
-        @repos = keys %{ $config->{repos} };
-    }
-
-    my %blocked = map { $_ => 1 } @{ $config->{block} };
-
-    return sort grep { !$blocked{$_} } @repos;
-}
-
-sub get_handler {
-    my $cfg = shift;
-    my $pkg;
-
-    if(exists $config->{actions}{ $cfg->{action} }) {
-        if(ref($config->{actions}{ $cfg->{action} }) eq 'HASH') {
-            if(exists $config->{actions}{ $cfg->{action} }{class}) {
-                $pkg = $config->{actions}{ $cfg->{action} }{class};
-            }
-        }
-    }
-
-    unless($pkg) {
-        $pkg = $cfg->{action};
-        $pkg =~ s/^(\w)/\U$1/;
-        $pkg = __PACKAGE__ . "::$pkg";
-    }
-    eval "require $pkg && $pkg->can('run')"
-        or SVN::Web::X->throw(
-        error => '(missing package %1 for action %2: %3)',
-        vars  => [$pkg, $cfg->{action}, $@]
-        );
-    my $repos = $cfg->{repos} ? $REPOS{ $cfg->{repos} } : undef;
-    return $pkg->new(
-        %$cfg,
-        reposname => $cfg->{repos},
-        repos     => $repos,
-        config    => $config
-    );
-}
-
-sub run {
-    my $cfg = shift;
-
-    my $pool = SVN::Pool->new_default;
-
-    my $obj;
-    my $html;
-
-    my $cache;
-
-    if(defined $config->{cache}{class}) {
-	eval "require $config->{cache}{class}"
-	  or SVN::Web::X->throw(error => '(require %1 failed: %2)',
-				vars  => [$config->{cache}{class}, $@]
-			       );
-
-	$config->{cache}{opts} = {}  unless exists $config->{cache}{opts};
-	$config->{cache}{opts}{namespace} = $cfg->{repos};
-	$cache = $config->{cache}{class}->new($config->{cache}{opts});
-    }
-
-    if(defined $cfg->{repos} && length $cfg->{repos}) {
-        get_repos($cfg->{repos});
-    }
-
-    if($cfg->{repos} && $REPOS{ $cfg->{repos} }) {
-        @{ $cfg->{navpaths} } = File::Spec::Unix->splitdir($cfg->{path});
-        shift @{ $cfg->{navpaths} };
-
-        # should use attribute or things alike
-        $obj = get_handler(
-            {   %$cfg,
-                opts => exists $config->{actions}{ $cfg->{action} }{opts}
-                ? $config->{actions}{ $cfg->{action} }{opts}
-                : {},
-            }
-        );
-    } else {
-        $cfg->{action} = 'list';
-        $obj = get_handler(
-            {   %$cfg,
-                opts => exists $config->{actions}{ $cfg->{action} }{opts}
-                ? $config->{actions}{ $cfg->{action} }{opts}
-                : {},
-            }
-        );
-    }
-
-    loc_lang($cfg->{lang} ? $cfg->{lang} : ());
-
-    # Generate output, from the cache if necessary.
-
-    # Does the object support caching?  If so, get the cache key
-    my $cache_key;
-    if(defined $cache and $obj->can('cache_key')) {
-	$cache_key = $cfg->{action} . ':' . $obj->cache_key();
-	#print STDERR "Key: $cache_key, ";
-    }
-
-    # If there's a key, retrieve the data from the cache
-    $html = $cache->get($cache_key) if defined $cache_key;
-
-    # No data?  Get the object to generate it, then cache it
-    if(! defined $html) {
-	$html = $obj->run();
-
-	if(defined $cache_key) {
-	    $cache->set($cache_key, $html, $cfg->{cache}{expires_in});
-	}
-	#print STDERR "not cached\n";
-    } else {
-	#print STDERR "cached\n";
-    }
-
-    $pool->clear;
-    return $html;
-}
-
-sub cgi_output {
-    my($cfg, $html) = @_;
-
-    return unless defined $html;
-
-    if(ref($html)) {
-        print $cfg->{cgi}->header(
-            -charset => $html->{charset}  || 'UTF-8',
-            -type    => $html->{mimetype} || 'text/html'
-        );
-
-        if($html->{template}) {
-            $template->process($html->{template},
-                { %$cfg, %{ $html->{data} } })
-                or die $template->error;
-        } else {
-            print $html->{body};
-        }
-    } else {
-        print $cfg->{cgi}->header(
-            -charset => 'UTF-8',
-            -type    => 'text/html'
-        );
-        print $html;
-    }
-}
-
-sub mod_perl_output {
-    my($cfg, $html) = @_;
-
-    if(ref($html)) {
-        my $content_type = $html->{mimetype} || 'text/html';
-        $content_type .= '; charset=';
-        $content_type .= $html->{charset} || 'UTF-8';
-        $cfg->{request}->content_type($content_type);
-
-	if(mod_perl_2) {
-	    $cfg->{request}->headers_out();
-	} else {
-	    $cfg->{request}->send_http_header();
-	}
-
-        if($html->{template}) {
-            $template ||= get_template();
-            $template->process($html->{template},
-                { %$cfg, %{ $html->{data} } },
-                $cfg->{request})
-                or die $template->error;
-        } else {
-            $cfg->{request}->print($html->{body});
-        }
-    } else {
-        $cfg->{request}->content_type('text/html; charset=UTF-8');
-
-	if(mod_perl_2) {
-	    $cfg->{request}->headers_out();
-	} else {
-	    $cfg->{request}->send_http_header();
-	}
-
-        $cfg->{request}->print($html);
-    }
-}
-
-our $pool;    # global pool for holding opened repos
-
-sub get_template {
-    Template->new(
-        {   INCLUDE_PATH => $config->{templatedirs},
-            PRE_PROCESS  => 'header',
-            POST_PROCESS => 'footer',
-            COMPILE_DIR  => $config->{tt_compile_dir},
-            FILTERS      => {
-                l       => ([\&loc_filter, 1]),
-                log_msg => \&log_msg_filter,
-            }
-        }
-    );
-}
-
-sub run_cgi {
-    my %opts = @_;
-    die $@ if $@;
-    $pool ||= SVN::Pool->new_default;
-    load_config('config.yaml');
-    $config->{$_} = $opts{$_} foreach keys %opts;
-    $template               ||= get_template();
-    $config->{diff_context} ||= 3;
-
-    # Pull in the configured CGI class.  Propogate any errors back, and
-    # call the correct import() routine.
-    #
-    # This is more complicated than it should be.  If $config->{cgi_class}
-    # is defined then use that.  If not, use CGI::Fast.  If that can't be
-    # loaded then use CGI.
-    #
-    # There's a problem with (at least) CGI::Fast.  It's possible for the
-    # require() to fail, but for CGI::Fast's entry in %INC to be populated.
-    # This seems to happen when CGI::Fast loads, but its dependency (such
-    # as FCGI) fails to load.  So if the require() fails for any reason
-    # we explicitly remove the %INC entry.
-
-    my $cgi_class;
-    my $eval_result;
-
-    if(exists $config->{cgi_class}) {
-        $eval_result = eval "require $config->{cgi_class}";
-        die $@ if $@;
-        $cgi_class = $config->{cgi_class};
-    } else {
-        foreach('CGI::Fast', 'CGI') {
-            $eval_result = eval "require $_";
-            if($@) {
-                my $path = $_;
-                $path =~ s{::}{/}g;
-                $path .= '.pm';
-                delete $INC{$path};
-            } else {
-                $cgi_class = $_;
-                last;
-            }
-        }
-    }
-
-    die "Could not load a CGI class" unless $eval_result;
-    $cgi_class->import();
-
-    # Save the selected module so that future calls to this routine
-    # don't waste time trying to find the correct class.
-    $config->{cgi_class} = $cgi_class unless exists $config->{cgi_class};
-
-    while(my $cgi = $cgi_class->new) {
-        my($html, $cfg);
-        eval {
-
-            # /<repository>/<action>/<path>/<file>?others
-            my(undef, $repos, $action, $path)
-                = split('/', $cgi->path_info, 4);
-            $action ||= 'browse';
-            $path   ||= '';
-	    $path     = uri_unescape($path) unless $path eq '';
-
-            my $base_uri = $ENV{SCRIPT_NAME};
-            $base_uri =~ s{/index.cgi}{};
-
-            $cfg = {
-                repos    => $repos,
-                action   => $action,
-                path     => "/$path",
-                script   => $ENV{SCRIPT_NAME},
-                base_uri => $base_uri,
-                style    => $config->{style},
-                cgi      => $cgi,
-            };
-
-            SVN::Web::X->throw(
-                error => '(action %1 not supported)',
-                vars  => [$action]
-                )
-                unless exists $config->{actions}{ lc($action) };
-
-            $html = run($cfg);
-        };
-
-        my $e;
-        if($e = SVN::Web::X->caught()) {
-            $html->{template} = 'x';
-            $html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
-        } else {
-            if($@) {
-                $html->{template} = 'x';
-                $html->{data}{error_msg} = $@;
-            }
-        }
-
-        cgi_output($cfg, $html);
-        last if $cgi_class eq 'CGI';
-    }
-}
-
-sub loc_filter {
-    my $context = shift;
-    my @args    = @_;
-    return sub { loc($_[0], @args) };
-}
-
-# A meta-filter for log messages.  Processes a list of hashes.  Each hash
-# has (at least) 'name' and 'filter' keys.  The 'name' is the Perl module
-# that implements the plugin.  The 'filter' key is the name of the plugin's
-# method that does the filtering.
-#
-# The optional 'opts' key is a list of option key/value pairs to pass
-# to the filter.
-sub log_msg_filter {
-    my $text = shift;
-
-    return $text if !defined $config->{log_msg_filters};
-
-    my $plugin;
-    my @filters = @{ $config->{log_msg_filters} };
-    my $context = $template->context();
-
-    foreach my $filter_spec (@filters) {
-        if($filter_spec->{name} ne 'standard') {
-            eval {    # Make sure plugin is available, skip if not
-                $plugin = $context->plugin($filter_spec->{name});
-            };
-            if($@) {
-                warn "Plugin $filter_spec->{name} is not available\n";
-                next;
-            }
-        }
-
-        if(defined $plugin and $plugin->can('filter')) {
-            $text = $plugin->filter($text, [], $filter_spec->{opts});
-        } else {
-            my $filter = $context->filter($filter_spec->{filter},
-                $filter_spec->{opts})
-                || next;
-            $text = $filter->($text);
-        }
-    }
-    return $text;
-}
-
-sub handler {
-    my $ok;
-    require CGI;
-
-    eval {
-        if(mod_perl_2) {
-            require Apache2::RequestRec;
-            require Apache2::RequestUtil;
-            require Apache2::RequestIO;
-            require Apache2::Response;
-            require Apache2::Request;
-            require Apache2::Const;
-            Apache2::Const->import(-compile => qw(OK DECLINED));
-            $ok = &Apache2::Const::OK;
-        } else {
-            require Apache::RequestRec;
-            require Apache::RequestUtil;
-            require Apache::RequestIO;
-            require Apache::Response;
-            require Apache::Request;
-            require Apache::Constants;
-            Apache::Constants->import(-compile => qw(OK DECLINED));
-            $ok = &Apache::Constants::OK;
-        }
-    };
-
-    my $r = shift;
-    eval "$r = Apache::Request->new($r)";
-    my $base   = $r->location;
-    my $repos  = $r->filename;
-    my $script = $r->uri;
-    $script =~ s|/$||;
-    $repos  =~ s|^$base/?||;
-    $repos ||= '';
-
-    if($repos) {
-        $script = $1
-            if $r->uri =~ m|^((?:/\w+)+?)/\Q$repos\E|
-            or SVN::Web::X->throw(
-            error => '(can\'t find script in %1)',
-            vars  => [$r->uri]
-            );
-    }
-    chdir($base);
-    $pool ||= SVN::Pool->new_default;
-    load_config('config.yaml');
-
-    my($html, $cfg);
-    eval {
-        my(undef, $action, $path) = split('/', $r->path_info, 3);
-        $action ||= 'browse';
-        $path   ||= '';
-	$path     = uri_unescape($path) unless $path eq '';
-
-        $cfg = {
-            repos    => $repos,
-            action   => $action,
-            script   => $script,
-            path     => "/$path",
-            request  => $r,
-            base_uri => $script,
-            style    => $config->{style},
-            cgi      => ref($r) eq 'Apache::Request' ? $r : CGI->new(),
-            opts     => exists $config->{actions}{$action}{opts}
-            ? $config->{actions}{$action}{opts}
-            : {},
-        };
-
-        SVN::Web::X->throw(
-            error => '(action %1 not supported)',
-            vars  => [$action]
-            )
-            unless exists $config->{actions}{ lc($action) };
-
-        $html = run($cfg);
-    };
-
-    my $e;
-    if($e = SVN::Web::X->caught()) {
-        $html->{template} = 'x';
-        $html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
-    }
-
-    mod_perl_output($cfg, $html);
-    return $ok;
-}
+There is a mailing list for SVN::Web users and developers.  The address
+is svnweb@ngo.org.uk.  To subscribe please visit
+L<http://jc.ngo.org.uk/mailman/listinfo/svnweb>.
 
 =head1 SEE ALSO
 
@@ -1165,5 +1494,3 @@ under the same terms as Perl itself.
 See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =cut
-
-1;

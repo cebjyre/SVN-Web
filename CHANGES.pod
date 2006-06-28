@@ -8,7 +8,82 @@ Changes between SVN::Web versions.
 
 =head1 DESCRIPTION
 
-=head2 0.47
+=head2 0.48, released Jun 28, 2006
+
+=over
+
+=item
+
+The interface localisation can now be selected.  The interface has always
+been localised, but the mechanism for choosing it has been badly exposed.
+SVN::Web now supports two configuration options (C<languages> and
+C<default_language>) to specify the language selection.
+
+In addition, the available configured languages are also exposed through
+the (C<trac>) user interface, and the user can choose from the list of
+available localisation.  Their choice is saved in a cookie.
+
+=item
+
+Generation of RSS feeds is now done using a template, instead of using
+L<XML::RSS>.  This removes a dependency on XML:RSS, and should make it
+easier to customise the content of the RSS feed should you desire.
+
+This fixes rt#18169, reported by Mike Ellery <mikee@s2technologies.com>.
+
+=item
+
+RSS feeds are now autodiscoverable in modern browsers.
+
+=item
+
+The formatting of timestamps is now configurable using
+L<POSIX/strftime>.  You can choose how timestamps are formatted, and
+they can be displayed in UTC (the Subversion default), the server's
+local timezone, or the timezone of your choice.  See L<SVN::Web/"Time
+and date formatting"> for details.
+
+This fixes rt#18806, reported by Mike Ellery <mikee@s2technologies.com>.
+
+=item
+
+Worked around a bug in Subversion where repository paths that were
+specified with a tailing slash would trigger an assertion.  This fixes
+rt#19273, reported by Michael Schwern <MSCHWERN@cpan.org>.
+
+=item
+
+Fixed a bug where the C<directory_umask> cache backend option was not being
+treated as an octal number.  This fixes rt#19272, reported by
+Michael Schwern <MSCHWERN@cpan.org>.
+
+=item
+
+The L<SVN::Web::Revision> action now show's the repository's youngest
+revision if no C<rev> parameter is provided.
+
+=item
+
+Fixed a bug in L<SVN::Web::Revision>.  Revisions that contain files that
+were copied from another file, modified, and then committed will now be
+displayed properly instead of generating an error.
+
+=item
+
+The documentation for L<SVN::Web> includes an example configuration for
+Apache and FastCGI, contributed by Robert Spier <rspier@pobox.com>.
+
+=item
+
+Made extensive changes to the test suite.  Include tests that exercise
+SVN::Web when running under C<svnweb-server>, as a CGI script, and as an
+Apache mod_perl1 handler.  These tests are optional -- the installer
+is prompted at C<perl Build.PL> time whether to run these tests, and
+to provide the information the tests need (such as the port to run on).
+
+=back
+
+=head2 0.47, released May 6, 2006
 
 =over
 

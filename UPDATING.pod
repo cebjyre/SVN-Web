@@ -8,8 +8,6 @@ Notes on updating from previous versions of SVN::Web
 
 =head1 DESCRIPTION
 
-=head2 0.46 to 0.47
-
 If you have not modified the supplied templates and localisation files
 the update can be carried out by:
 
@@ -30,12 +28,85 @@ templates and localisation files, as well as creating a new F<config.yaml>.
 
 =item 4.
 
-Restoring the F<config.yaml> that you backed up in step 1.
+Restoring the F<config.yaml> that you backed up in step 1, and making
+any changes, as described below.
 
 =back
 
 If you have made local modifications then the following information should
 help you merge the changes in this version in to your modified files.
+
+=head2 0.47 to 0.48
+
+=over 4
+
+=item
+
+F<I18N/fr.po> has a small update.  The diff is at L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/I18N/fr.po?rev1=958;rev2=959>.
+
+=item
+
+F<I18N/en.po> has a small update.  The diff is at L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/I18N/en.po?rev1=972;rev2=973>.
+
+=item
+
+F<I18N/zh_cn.po> has a small update.  The diff is at L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/I18N/zh_cn.po?rev1=898;rev2=899>.
+
+=item
+
+There have been several changes to the templates to support new RSS feeds
+and the new timedate formatting options.
+
+The diffs are:
+
+=over
+
+=item F<trac/browse>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/browse?revs=977&revs=881>
+
+=item F<trac/diff>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/diff?rev1=894;rev2=895>
+
+=item F<trac/header>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/header?revs=977&revs=959>
+
+=item F<trac/list>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/list?rev1=894;rev2=895>
+
+=item F<trac/log>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/log?revs=975&revs=891>
+
+=item F<trac/revision>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/revision?revs=895&revs=890>
+
+=item F<trac/view>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/view?revs=977&revs=891>
+
+=item F<trac/x>
+
+L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Template/trac/x?rev1=894;rev2=895>
+
+=back
+
+In addition, there is a new F<trac/rss> template, and a new
+F<Style/trac/feed-icon-16x16.png>, both of which must be copied in to
+place.
+
+=item
+
+F<Style/trac/browser.css> contains changes to support the new language
+selection box.  The diff is at L<http://jc.ngo.org.uk/svnweb/jc/diff/nik/CPAN/SVN-Web/trunk/lib/SVN/Web/Style/trac/browser.css?rev1=958;rev2=959>.
+
+=back
+
+=head2 0.46 to 0.47
 
 =over 4
 

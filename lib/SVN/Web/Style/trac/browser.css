@@ -9,6 +9,14 @@ h1 :link, h1 :visited { color: #b00 }
 h1 .first:link, h1 .first:visited { color: #998 }
 h1 .sep { color: #666; padding: 0 .1em }
 
+#navpath { float: left; }
+
+#language-selection { float: right; font-size: 10px; }
+#language-selection select { font-size: 10px; }
+#language-selection input { font-size: 10px; }
+
+#content { clear: both; }
+
 #jumprev { float: right; font-size: 10px; margin: 0 0 0 }
 #jumprev form { margin: 0 }
 #jumprev input { font-size: 10px; margin-right: 0 }

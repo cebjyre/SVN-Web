@@ -1,5 +1,12 @@
 package SVN::Web::action;
 
+our $VERSION = 0.48;
+
+use POSIX qw();
+use Time::Zone qw();
+
+use SVN::Core;
+
 =head1 NAME
 
 SVN::Web::action - base class for SVN::Web::actions
@@ -278,6 +285,35 @@ sub get_revs {
     return($exp_rev, $yng_rev, $act_rev, $at_head);
 }
 
+=head2 format_svn_timestamp()
+
+Given a cstring that represents a Subversion time, format the time using
+POSIX::strftime() and the current settings of the C<timedate_format> and
+C<timezone> configuration directives.
+
+=cut
+
+my $tz_offset = undef;		# Cache the timezone offset
+
+sub format_svn_timestamp {
+    my $self    = shift;
+    my $cstring = shift;
+
+    my $time = SVN::Core::time_from_cstring($cstring) / 1_000_000;
+
+    if($self->{config}->{timezone} eq 'local') {
+	return POSIX::strftime($self->{config}->{timedate_format},
+			       localtime($time));
+    }
+
+    if((not defined $tz_offset) and ($self->{config}->{timezone} ne '')) {
+	$tz_offset = Time::Zone::tz_offset($self->{config}->{timezone});
+	$time += $tz_offset;
+    }
+
+    return POSIX::strftime($self->{config}->{timedate_format}, gmtime($time));
+}
+
 =head1 CACHING
 
 If the output from the action can usefully be cached then consider
@@ -311,7 +347,7 @@ Exceptions, along with examples, are described in L<SVN::Web::X>.
 
 # Diff.pm and Revision.pm need to munge the output in Text::Diff::HTML in
 # the same way.  The code lives here for the time being, although it's not
-# probably not the optimal place to put it.
+# optimal place to put it.
 
 sub _munge_html_diff {
     my $self = shift;

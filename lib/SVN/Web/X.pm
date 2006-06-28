@@ -1,5 +1,7 @@
 package SVN::Web::X;
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::X - exceptions for SVN::Web

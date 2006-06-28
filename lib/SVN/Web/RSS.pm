@@ -2,7 +2,8 @@ package SVN::Web::RSS;
 @ISA = qw(SVN::Web::Log);
 use strict;
 use SVN::Web::Log;
-use XML::RSS;
+
+our $VERSION = 0.48;
 
 =head1 NAME
 
@@ -16,66 +17,75 @@ In F<config.yaml>
     ...
     rss:
       class: SVN::Web::RSS
+      opts:
+        publisher: address@domain
     ...
 
 =head1 DESCRIPTION
 
-Generates an RSS feed of commits to a file or path in the Subversion 
+Generates an RSS feed of commits to a file or path in the Subversion
 repository.
+
+=head1 CONFIGURATION
+
+The following options may be specified in F<config.yaml>.
+
+=over
+
+=item publisher
+
+The e-mail address of the feed's publisher.  This is placed in to the
+C<< <dc:publisher> >> element in the RSS output.
+
+There is no default.  If not specified then no C<< <dc:publisher> >>
+element is included.
+
+=back
+
+B<Note:> RSS dates have a specific format.  Accordingly, the C<timezone>
+and C<timedate_format> configuration options are ignored by this action.
 
 =head1 OPTIONS
 
-None.
+See L<SVN::Web::Log>.
 
 =head1 TEMPLATE VARIABLES
 
-None.  This action does not use a template.
+See L<SVN::Web::Log>.
 
 =head1 EXCEPTIONS
 
-None.
+See L<SVN::Web::Log>.
 
 =cut
 
+my %default_opts = (publisher => '');
+
+# <dc:date> elements have a specific format that we must use, overriding
+# the user's choice
+sub format_svn_timestamp {
+    my $self    = shift;
+    my $cstring = shift;
+
+    my $time = SVN::Core::time_from_cstring($cstring) / 1_000_000;
+
+    return POSIX::strftime('%Y-%m-%dT%H:%M:%S', gmtime($time));
+}
+
 sub run {
     my $self = shift;
-    my $data = eval { $self->SUPER::run(@_)->{data}; };
 
-    if(!defined $data) {
-        return
-            "<p>RSS error -- this file does not exist in the repository.</p>";
-    }
+    my $data = $self->SUPER::run(@_)->{data};
 
-    my $rss = new XML::RSS(version => '1.0');
-    my $url = "http://$ENV{HTTP_HOST}$self->{script}/$self->{reposname}";
+    $self->{opts} = { %default_opts, %{ $self->{opts} } };
 
-    $rss->channel(
-        title => "subversion revisions of $self->{path}",
-        link  => "$url/log$self->{path}",
-        dc    => {
-            date      => $self->{REVS}[0]{date},
-            creator   => 'SVN::Web',
-            publisher => "adm\@$ENV{HTTP_HOST}",
-        },
-        syn => {
-            updatePeriod    => "daily",
-            updateFrequency => "1",
-            updateBase      => "1901-01-01T00:00+00:00",
-        },
-    );
-
-    $_ && $rss->add_item(
-        title => "$_->{rev} - "
-            . substr((split("\n", $_->{msg}, 1))[0], 0, 40),
-        link => "$url/revision/?rev=$_->{rev}",
-        dc   => {
-            date    => $_->{date},
-            creator => $_->{author},
-        },
-        description => $_->{msg},
-        )
-        for @{ $self->{REVS} }[0 .. 10];
-    return { mimetype => 'text/xml', body => $rss->as_string };
+    return {
+        template => 'rss',
+	mimetype => 'text/xml',
+        data     => { %{$data},
+		      publisher => $self->{opts}{publisher},
+		    }
+    };
 }
 
 1;

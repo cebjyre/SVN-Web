@@ -1,3 +1,4 @@
+[% PROCESS header %]
 [% class_with_action = { 'A' => 'add',
                          'M' => 'mod', 
                          'D' => 'rem',
@@ -12,7 +13,7 @@
     [% END %]
     [% IF rev != youngest_rev %]
       <li class="first"><a href="[% script %]/[% repos %]/revision?rev=[% rev + 1 %]">[%|l%](next revision)[%END%]</a></li>
-      <li class="first last"><a href="[% script %]/[% repos %]/revision?rev=[% youngest_rev %]">[%|l%](youngest revision)[%END%]</a></li>
+      <li class="first last"><a href="[% script %]/[% repos %]/revision">[%|l%](youngest revision)[%END%]</a></li>
     [% END %]
   </ul>
 </div>
@@ -30,7 +31,7 @@
 
 <dl id="overview">
   <dt class="time">[%|l%](date)[%END%]:</dt>
-  <dd class="time">[% date.replace('T', ' ').replace('\..+', '').replace('-', '/') %]</dd>
+  <dd class="time">[% date %]</dd>
 
   <dt class="author">[%|l%](author)[%END%]:</dt>
   <dd class="author">[% author || '(no author)' %]</dd>
@@ -107,3 +108,4 @@
     </ul>
   [% END %]
 </div>
+[% PROCESS footer %]

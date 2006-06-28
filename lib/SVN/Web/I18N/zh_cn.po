@@ -27,7 +27,7 @@ msgid "(from revision %1)"
 msgstr "(自更动编号 %1)"
 
 #: template/browse:2
-msgid "(history of this directory)"
+msgid "(revision log)"
 msgstr "(此目录的沿革)"
 
 #: template/browse:15
@@ -52,7 +52,7 @@ msgid "(powered by)"
 msgstr "采用 SVN::Web 架设"
 
 #: template/browse:19
-msgid "age"
+msgid "(age)"
 msgstr "时间"
 
 #: template/browse:1
@@ -70,7 +70,7 @@ msgid "name"
 msgstr "名称"
 
 #: template/browse:19
-msgid "revision"
+msgid "(revision)"
 msgstr "更动"
 
 #: template/log:8 template/revision:1
@@ -79,5 +79,5 @@ msgid "revision %1"
 msgstr "更动编号 %1"
 
 #: template/browse:19
-msgid "size"
+msgid "(size)"
 msgstr "大小"

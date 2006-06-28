@@ -16,6 +16,8 @@ use List::Util qw(max min);
 
 eval 'use SVN::DiffEditor 0.09; require IO::String; 1' and my $has_svk = 1;
 
+our $VERSION = 0.48;
+
 =head1 NAME
 
 SVN::Web::Diff - SVN::Web action to show differences between file revisions

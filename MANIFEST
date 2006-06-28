@@ -2,6 +2,7 @@ bin/svnweb-install
 bin/svnweb-server
 CHANGES.pod
 CONTRIBUTING.pod
+conf/httpd.tt
 lib/SVN/Web.pm
 lib/SVN/Web/action.pm
 lib/SVN/Web/Browse.pm
@@ -21,6 +22,7 @@ lib/SVN/Web/Style/trac/browser.css
 lib/SVN/Web/Style/trac/changeset.css
 lib/SVN/Web/Style/trac/code.css
 lib/SVN/Web/Style/trac/diff.css
+lib/SVN/Web/Style/trac/feed-icon-16x16.png
 lib/SVN/Web/Style/trac/file.png
 lib/SVN/Web/Style/trac/filedeny.png
 lib/SVN/Web/Style/trac/folder.png
@@ -45,6 +47,7 @@ lib/SVN/Web/Template/trac/header
 lib/SVN/Web/Template/trac/list
 lib/SVN/Web/Template/trac/log
 lib/SVN/Web/Template/trac/revision
+lib/SVN/Web/Template/trac/rss
 lib/SVN/Web/Template/trac/view
 lib/SVN/Web/Template/trac/x
 lib/SVN/Web/Test.pm
@@ -59,10 +62,12 @@ SIGNATURE
 t/1use.t
 t/2basic.t
 t/3svnweb-install.t
-t/benchmark.t
 t/cache.t
-t/pod.t
+t/cgi.t
+t/mod_perl.t
+t/svnweb-server.t
 t/test_repo.dump
+t/timedate_format.t
 TODO
 UPDATING.pod
 SIGNATURE    Added here by Module::Build

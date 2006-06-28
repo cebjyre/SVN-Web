@@ -15,11 +15,17 @@
     [% ELSE %]
       <link rel="stylesheet" type="text/css" href="[% base_uri %]/css/trac/svnweb.css" />
     [% END %]
+    [% IF action.match('^(?:browse|log|view)$') AND at_head %]
+      <link rel="alternate" type="application/rss+xml"
+        title="RSS Feed for [% path | uri | html %]"
+        href="[% script %]/[% repos %]/rss[% path | uri | html %]">
+    [% END %]
   </head>
   <body>
-    [% UNLESS nonav %]
+    <div>
+      [% UNLESS nonav %]
       <div id="navpath">
-	<h1><a class="first" href="[% script %]">[%|l%](repository list)[%END%]</a> /  [% url = [script,repos,''] %]  [% url = url.join('/') %]  [% urlpath = ['',''] %]<a href="[% url %]">[% repos %]</a>
+	<h1><a class="first" href="[% script %]/">[%|l%](repository list)[%END%]</a> /  [% url = [script,repos,''] %]  [% url = url.join('/') %]  [% urlpath = ['',''] %]<a href="[% url %]">[% repos %]</a>
             [% FOREACH p = navpaths %]
               [% CALL urlpath.splice(-1, 0, p) %]
               [% IF loop.count == loop.size %]
@@ -31,5 +37,24 @@
               [% END %]
           [% END %] @ [% at_head ? 'HEAD' : "r$rev" %]</h1>
       </div>
-    [% END %]
+      [% END %]
+
+      <div id="language-selection">
+        <form action="[% cgi.self_url %]">
+          <select name="lang" onchange="this.form.submit();">
+          [% FOREACH curlang IN languages -%]
+            <option value="[% curlang.key %]"
+            [%- IF curlang.key == lang %] selected="yes"[% END %]>[% curlang.value %]</option>
+          [% END %]
+          </select>
+          [% FOREACH param IN cgi.param %]
+          <input type="hidden" name="[% param %]" value="[% cgi.param(param) %]" />
+          [% END %]
+          <noscript>
+            <input type="submit" value="Go">
+          </noscript>
+        </form>
+      </div>
+    </div>
+
     <div id="content">
