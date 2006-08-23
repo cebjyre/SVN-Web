@@ -16,7 +16,7 @@ use List::Util qw(max min);
 
 eval 'use SVN::DiffEditor 0.09; require IO::String; 1' and my $has_svk = 1;
 
-our $VERSION = 0.48;
+our $VERSION = 0.49;
 
 =head1 NAME
 

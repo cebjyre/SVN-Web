@@ -13,24 +13,21 @@ use File::Spec;
 use POSIX ();
 
 use SVN::Web::X;
-eval 'use FindBin';
-{
-    no warnings 'uninitialized';
-    use Locale::Maketext::Simple (
-        Path => (
-            (-e "$FindBin::Bin/po/en.po")
-            ? "$FindBin::Bin/po"
-            : substr(__FILE__, 0, -3) . '/I18N'
-        ),
-        Style  => 'gettext',
-        Decode => 0,
-    );
-}
+use FindBin;
+use Locale::Maketext::Simple 
+  ( Path => (
+	     (-e File::Spec->catfile($FindBin::Bin, 'po', 'en.po'))
+	     ? File::Spec->catdir($FindBin::Bin, 'po')
+	     : File::Spec->catdir(substr(__FILE__, 0, -3), 'I18N')
+	    ),
+    Style  => 'gettext',
+    Decode => 0,
+  );
 
 use constant mod_perl_2 =>
     (exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2);
 
-our $VERSION = 0.48;
+our $VERSION = 0.49;
 
 my $template;
 my $config;
@@ -45,7 +42,7 @@ sub load_config {
 
     # If neither of them are set, use 'templatedirs'
     if(!exists $config->{templatedir} and !exists $config->{templatedirs}) {
-        $config->{templatedirs} = ['template/trac'];
+        $config->{templatedirs} = [File::Spec->catdir(qw(template trac))];
     }
 
     # If 'templatedir' is the only one set, use it.
@@ -109,7 +106,7 @@ sub get_repos {
 
     my $repo_path =
         $config->{reposparent}
-        ? "$config->{reposparent}/$repos"
+        ? File::Spec->catdir($config->{reposparent}, $repos)
         : $config->{repos}{$repos};
 
     SVN::Web::X->throw(
@@ -117,7 +114,7 @@ sub get_repos {
         vars  => [$repos, $repo_path]
         )
         unless($config->{reposparent}
-        && -d "$config->{reposparent}/$repos")
+        && -d File::Spec->catdir($config->{reposparent}, $repos))
         || exists $config->{repos}{$repos} && -d $config->{repos}{$repos};
 
     $repo_path =~ s{/$}{}g;	# Trim trailing '/', SVN::Repos::open fails
@@ -151,7 +148,7 @@ sub repos_list {
             vars  => [$config->{reposparent}, $!]
             );
 
-        foreach my $dir (grep { -d "$config->{reposparent}/$_" && !/^\./ }
+        foreach my $dir (grep { -d File::Spec->catdir($config->{reposparent}, $_) && !/^\./ }
             readdir $dh) {
             push @repos, $dir;
         }
@@ -178,7 +175,7 @@ sub get_handler {
 
     unless($pkg) {
         $pkg = $cfg->{action};
-        $pkg =~ s/^(\w)/\U$1/;
+        $pkg =~ s{^(\w)}{\U$1};
         $pkg = __PACKAGE__ . "::$pkg";
     }
     eval "require $pkg && $pkg->can('run')"
@@ -285,12 +282,17 @@ sub get_language {
 
     # If lang was included in the query string then delete it now we've
     # got it.  This stops it showing up in from calls to self_url().  Have
-    # to do this in two different ways, depending on whether this is an
-    # Apache::Request or a CGI object.
+    # to do this in three different ways, depending on whether this is an
+    # Apache::Request, Apache2::Request, or a CGI object.
     if(defined $lang) {
 	if(ref($obj) eq 'Apache::Request') {
 	    my $table = $obj->parms();
 	    delete $table->{lang};
+	} elsif(ref($obj) eq 'Apache2::Request') {
+	    # Get the query string, remove lang param, replace queue string
+	    my $args = $obj->args();
+	    $args =~ s/lang = $lang (?:&|;)?//xms;
+	    $obj->args($args);
 	} else {
 	    $obj->delete('lang'); # Remove from self_url() invocations
 	}
@@ -302,6 +304,12 @@ sub get_language {
 	    my $cookies = Apache::Cookie->fetch();
 	    if(defined $cookies->{'svnweb-lang'}) {
 		$lang = $cookies->{'svnweb-lang'}->value();
+	    }
+	} elsif(ref($obj) eq 'Apache2::Request') {
+	    my $jar            = Apache2::Cookie::Jar->new($obj);
+	    my $lang_in_cookie = $jar->cookies('svnweb-lang');
+	    if(defined $lang_in_cookie) {
+		$lang = $lang_in_cookie->value();;
 	    }
 	} else {
 	    $lang = $obj->cookie('svnweb-lang');
@@ -360,12 +368,19 @@ sub mod_perl_output {
 
     my @cookies = ();
 
-    push @cookies, Apache::Cookie->new($cfg->{request},
-				       -name  => 'svnweb-lang',
-				       -value => $cfg->{lang},
-				      );
-
-    $_->bake() foreach @cookies;
+    if(mod_perl_2) {
+	push @cookies, Apache2::Cookie->new($cfg->{request},
+					    -name  => 'svnweb-lang',
+					    -value => $cfg->{lang},
+					   );
+	$_->bake($cfg->{request}) foreach @cookies;
+    } else {
+	push @cookies, Apache::Cookie->new($cfg->{request},
+					   -name  => 'svnweb-lang',
+					   -value => $cfg->{lang},
+					  );
+	$_->bake() foreach @cookies;
+    }
 
     if(ref($html)) {
         my $content_type = $html->{mimetype} || 'text/html';
@@ -449,7 +464,8 @@ sub run_cgi {
             $eval_result = eval "require $_";
             if($@) {
                 my $path = $_;
-                $path =~ s{::}{/}g;
+		my @path_components = split('::', $path);
+		$path = File::Spec->catfile(@path_components);
                 $path .= '.pm';
                 delete $INC{$path};
             } else {
@@ -488,6 +504,7 @@ sub run_cgi {
 	    $cfg->{path}     = $path;
 	    $cfg->{script}   = $script;
 	    $cfg->{base_uri} = $base;
+	    $cfg->{self_uri} = $cgi->self_url();
 
             $html = run($cfg);
         };
@@ -562,7 +579,7 @@ sub crack_url {
 
     my($location, $filename, $path_info, $uri);
 
-    if(ref($obj) eq 'Apache') {
+    if(ref($obj) eq 'Apache' or ref($obj) eq 'Apache2::RequestRec') {
 	$location  = $obj->location();
 	$filename  = $obj->filename();
 	$path_info = $obj->path_info();
@@ -603,8 +620,17 @@ sub crack_url {
 	$repo   = '';		# No repo, show repo list
 	$action = 'list';
     } else {
+	# Start with $repo equal to $filename.  Then remove $location.
+	# This needs to be quoted for systems where the path may include
+	# backslashes.  There may also be a trailing directory separator
+	# which needs removing.
+	#
+	# XXX In an ideal world File::Spec would tell us what the directory
+	# separator is.  For the time being, punt, and use both forward and
+	# backward slashes.
 	$repo = $filename;
-	$repo =~ s{^$location/}{}; # Remove the location
+	my $quoted_location = quotemeta($location);
+	$repo =~ s{^ $quoted_location [/\\]? }{}x;
     }
 
 #    warn "REPO: $repo\n";
@@ -647,18 +673,34 @@ sub crack_url {
 
     # Determine $script
     #
-    # $script is the URI that points to the SVN::Web script.  If this is
-    # CGI then it's something like '/svnweb/index.cgi'.  If it's an Apache
-    # handler then it will be a directory reference, like '/svnweb', or
-    # possibly '/'.
+    # $script is the URI that points to the SVN::Web script.  If this
+    # is CGI then it's something like 'http://host//svnweb/index.cgi'.
+    # If it's an Apache handler then it will be a directory reference,
+    # like '/svnweb', or possibly '/'.
     #
-    # In the CGI case this is just the SCRIPT_NAME environment variable.
-    # There's no Apache equivalent, so take the URI, and starting from the
-    # right end, remove the path, the action, and the repository name.  The
-    # result is the root URI for the handler.
+    # In the CGI case this is just the SCRIPT_NAME environment
+    # variable.  There's no Apache equivalent, so for Apache 1 take
+    # the URI, prepend the protocol, host, and port, then starting
+    # from the right end, remove the path, the action, and the
+    # repository name.  The result is the root URI for the handler.
+    #
+    # For Apache 2 use Apache2::URI::construct_url() to get the full
+    # URL (without the query string), and then perform the same
+    # substitutions as for the Apache 1 case.
     if(ref($obj) eq 'Apache') {
-	$script = $uri;
+	my $port = $obj->server()->port();
+
+	$script = sprintf('%s://%s:%s%s',
+			  $port == 443 ? 'https' : 'http',
+			  $obj->server()->server_hostname(),
+			  $port,
+			  $uri);
 	$script =~ s/$path$//;
+	$script =~ s{/$action$}{};
+	$script =~ s{/$repo$}{};
+    } elsif(ref($obj) eq 'Apache2::RequestRec') {
+	$script = $obj->construct_url();
+	$script =~ s{$path$}{};
 	$script =~ s{/$action$}{};
 	$script =~ s{/$repo$}{};
     } else {
@@ -691,10 +733,10 @@ sub crack_url {
 	if(exists $ENV{SCRIPT_FILENAME}) {
 	    my $path = $ENV{SCRIPT_FILENAME};
 	    my(undef, undef, $file) = File::Spec->splitpath($path);
-	    $base =~ s/$file$//;
+	    $base =~ s{$file$}{};
 	} else {
 #	    warn 'SCRIPT_FILENAME not set in environment, assuming script is called index.cgi';
-	    $base =~ s/index.cgi$//;
+	    $base =~ s{index.cgi$}{};
 	}
     }
     $base =~ s{/$}{};		# Remove trailing slash
@@ -714,8 +756,10 @@ sub handler {
             require Apache2::RequestUtil;
             require Apache2::RequestIO;
             require Apache2::Response;
-            require Apache2::Request;
+	    require Apache2::Request;
             require Apache2::Const;
+	    require Apache2::Cookie;
+	    require Apache2::URI;
             Apache2::Const->import(-compile => qw(OK DECLINED));
             $ok = &Apache2::Const::OK;
         } else {
@@ -729,9 +773,10 @@ sub handler {
 
     die $@ if $@;		# Fail if the mod_perl imports failed
 
-    my $r = shift;
+    my $r = shift;		# Apache or Apache2::RequestRec object
 
-    my $apr = Apache::Request->new($r);
+    my $apr = mod_perl_2 ? Apache2::Request->new($r)
+                         : Apache::Request->new($r);
 
     my($action, $base, $repo, $script, $path) = crack_url($r);
 
@@ -759,6 +804,12 @@ sub handler {
 	$cfg->{path}     = $path;
 	$cfg->{script}   = $script;
 	$cfg->{base_uri} = $base;
+
+	$cfg->{self_uri} = $r->uri();
+	my $args         = $r->args();
+	if($args) {
+	    $cfg->{self_uri} .= "?$args";
+	}
 
         $html = run($cfg);
     };
@@ -1457,6 +1508,29 @@ is suitable.
   <Directory /path/to/svnweb/css>
      SetHandler default-handler
   </Directory>
+
+=head2 IIS
+
+SVN::Web works as a CGI script with IIS and Subversion on Windows servers.
+
+After following the instructions in L</SYNOPSIS>, ensure that IIS makes
+the new F<svnweb> directory available either as a directory or a
+virtual host.
+
+Using IIS Manager:
+
+=over
+
+=item
+
+Allow executable access to this directory (see I<Execute Permissions> in
+the I<Home Directory> tab under I<Properties>).
+
+=item
+
+Add F<index.cgi> to the list of default content pages under I<Documents>.
+
+=back
 
 =head1 MAILING LIST
 

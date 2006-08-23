@@ -36,6 +36,23 @@ any changes, as described below.
 If you have made local modifications then the following information should
 help you merge the changes in this version in to your modified files.
 
+=head2 0.48 to 0.49
+
+=over 4
+
+=item
+
+F<Template/trac/header>, F<Template/trac/browse>, F<Template/trac/log>,
+F<Template/trav/view>, and F<Style/trac/browser.css> have been updated
+for HTML compliance.
+
+=item
+
+F<Template/trac/diff> no longer uses the CGI module to retrieve the
+current URL.
+
+=back
+
 =head2 0.47 to 0.48
 
 =over 4

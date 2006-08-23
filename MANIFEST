@@ -2,7 +2,8 @@ bin/svnweb-install
 bin/svnweb-server
 CHANGES.pod
 CONTRIBUTING.pod
-conf/httpd.tt
+conf/apache1.tt
+conf/apache2.tt
 lib/SVN/Web.pm
 lib/SVN/Web/action.pm
 lib/SVN/Web/Browse.pm

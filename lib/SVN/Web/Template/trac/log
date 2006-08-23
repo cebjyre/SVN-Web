@@ -1,11 +1,10 @@
 [% PROCESS header %]
-[% USE cgi = CGI %]
 
 [% IF ! isdir OR at_head %]
-<p>[% IF at_head %]<a href="[% script %]/[% repos %]/rss[% path | uri | html %]"><img src="[% base_uri %]/css/trac/feed-icon-16x16.png" width="16" height="16" alt="" align="absmiddle" /> [%|l%](rss)[%END%]</a>[% IF ! isdir %] | [%END%][% END %][% IF ! isdir %]<a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a>[% END %]</p>
+<p>[% IF at_head %]<a href="[% script %]/[% repos %]/rss[% path | uri | html %]"><img class="icon" src="[% base_uri %]/css/trac/feed-icon-16x16.png" width="16" height="16" alt="" /> [%|l%](rss)[%END%]</a>[% IF ! isdir %] | [%END%][% END %][% IF ! isdir %]<a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a>[% END %]</p>
 [% END %]
 
-<div class="title"><form action="[% cgi.self_url %]" method="get">
+<div class="title"><form action="[% self_uri %]" method="get">
   [%|l%](show last)[%END%] <input name="limit" size=4 value="[% limit %]" /> [%|l%](changes)[%END%]</form>
 </div>
 
@@ -50,7 +49,7 @@
       [% FOREACH pk = paths %]
         [% IF pk.value.isdir %]
           [% IF pk.value.copyfrom %]
-            Copied from <a href="[% script %]/[% repos %]/browse[% pk.value.copyfrom %]/?rev=[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%]%1:%2[%END%]</a><br />
+            Copied from <a href="[% script %]/[% repos %]/browse[% pk.value.copyfrom %]?rev=[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%]%1:%2[%END%]</a><br />
           [% END %]
         [% ELSE %]
           [% IF pk.value.copyfrom %]

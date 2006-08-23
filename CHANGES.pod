@@ -8,6 +8,72 @@ Changes between SVN::Web versions.
 
 =head1 DESCRIPTION
 
+=head2 0.49, released Aug 23, 2006
+
+=over
+
+=item
+
+SVN::Web now properly supports Apache 2 / mod_perl 2.  In addition, the
+test suite contains tests that work under Apache 2, and ensure that
+future changes should not introduce regressions in this functionality.
+
+=item
+
+File::Spec is now used when constructing filesystem paths, instead of
+assuming that the directory separator is F</>.  This should allow the
+use of native paths on Windows, e.g. F<< C:\path\to\svnweb >>.
+
+=item
+
+A bug in the mod_perl handler meant that the [% script %] directive
+wasn't generating fully qualified links.  This resulted in links in
+the RSS feed being relative.  This is now fixed.  Reported by
+Dietrich Streifert <dietrich.streifert@visionet.de>.
+
+=item
+
+When testing the generated F<httpd.conf> includes an explicit
+C<ServerName> directive, removing a warning on some hosts.  Reported
+in rt#20170 by <fiajro@cy.ath.cx>.
+
+=item
+
+Set permissions on the temporary directories when running tests as
+root.  Otherwise they fail.  Reported in rt#20170 by
+<fiajro@cy.ath.cx>.
+
+=item
+
+Fix a bug encounted on Solaris.  SVN::Core::time_from_cstring() was
+returning negative numbers.
+
+=item
+
+The questions that are asked when running C<< perl Build.PL >> can now
+be answered and/or skipped by passing command line options to F<Build.PL>.
+Run C<< perldoc Build.PL >> for the documentation options.
+
+=item
+
+Paths to Apache modules are no longer hardcoded in F<conf/httpd.tt>.
+C<apxs> is used to retrieve the value of the Apache library directory.
+In addition, the name of the mod_perl .so file is now configurable, as
+different systems call it different things.
+
+=item
+
+Including documentation on using SVN::Web with the IIS web server.
+Submitted by Tom Hukins <tom@eborcom.com> in rt#20341.
+
+=item
+
+A bug in the author's testing environment meant that 0.48 shipped with
+templates that generated HTML that was not strictly valid.  This, and
+the templates, have been fixed.
+
+=back
+
 =head2 0.48, released Jun 28, 2006
 
 =over

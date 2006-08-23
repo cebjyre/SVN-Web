@@ -9,6 +9,8 @@ h1 :link, h1 :visited { color: #b00 }
 h1 .first:link, h1 .first:visited { color: #998 }
 h1 .sep { color: #666; padding: 0 .1em }
 
+img.icon { vertical-align: middle; }
+
 #navpath { float: left; }
 
 #language-selection { float: right; font-size: 10px; }

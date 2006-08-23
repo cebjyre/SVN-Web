@@ -1,5 +1,5 @@
 [% PROCESS header %]
-<p><a href="[% script %]/[% repos %]/log[% path | uri | html %][% revstr %]">[%|l%](view revision log)[%END%]</a>[% IF at_head %]| <a href="[% script %]/[% repos %]/rss[% path | uri | html %]"><img src="[% base_uri %]/css/trac/feed-icon-16x16.png" width="16" height="16" alt="" align="absmiddle" /> [%|l%](rss)[%END%]</a>[% END %] | <a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a></p>
+<p><a href="[% script %]/[% repos %]/log[% path | uri | html %][% revstr %]">[%|l%](view revision log)[%END%]</a>[% IF at_head %]| <a href="[% script %]/[% repos %]/rss[% path | uri | html %]"><img class="icon" src="[% base_uri %]/css/trac/feed-icon-16x16.png" width="16" height="16" alt="" /> [%|l%](rss)[%END%]</a>[% END %] | <a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a></p>
 
 <table id="info" summary="[%|l%](revision log)[%END%]">
   <tr>

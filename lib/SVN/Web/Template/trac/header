@@ -18,7 +18,7 @@
     [% IF action.match('^(?:browse|log|view)$') AND at_head %]
       <link rel="alternate" type="application/rss+xml"
         title="RSS Feed for [% path | uri | html %]"
-        href="[% script %]/[% repos %]/rss[% path | uri | html %]">
+        href="[% script %]/[% repos %]/rss[% path | uri | html %]" />
     [% END %]
   </head>
   <body>
@@ -40,7 +40,7 @@
       [% END %]
 
       <div id="language-selection">
-        <form action="[% cgi.self_url %]">
+        <form action="[% self_uri %]">
           <select name="lang" onchange="this.form.submit();">
           [% FOREACH curlang IN languages -%]
             <option value="[% curlang.key %]"
@@ -48,10 +48,11 @@
           [% END %]
           </select>
           [% FOREACH param IN cgi.param %]
-          <input type="hidden" name="[% param %]" value="[% cgi.param(param) %]" />
+            [% NEXT IF param == 'lang' %] 
+            <input type="hidden" name="[% param %]" value="[% cgi.param(param) %]" />
           [% END %]
           <noscript>
-            <input type="submit" value="Go">
+            <input type="submit" value="Go" />
           </noscript>
         </form>
       </div>

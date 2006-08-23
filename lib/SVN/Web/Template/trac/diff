@@ -1,9 +1,8 @@
 [% PROCESS header %]
-[% USE cgi = CGI %]
 
 <h1>[%|l(script, repos, rev1, rev2)%](diff range)[%END%]</h1>
 
-<p><a href="[% cgi.url(path => 1) %]?rev1=[% rev2 %];rev2=[% rev1 %]">[%|l%](reverse diff)[%END%]</a> | <a href="[% cgi.url(path => 1, query => 1) %];mime=text/plain">[%|l%](view plain text)[%END%]</a></p>
+<p><a href="[% script %]/[% repos %]/diff[% path | uri | html %]?rev1=[% rev2 %];rev2=[% rev1 %]">[%|l%](reverse diff)[%END%]</a> | <a href="[% script %]/[% repos %]/diff[% path | uri | html %]?rev1=[% rev1 %];rev2=[% rev2 %];mime=text/plain">[%|l%](view plain text)[%END%]</a></p>
 
 <div class="diff">
   <ul>

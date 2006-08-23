@@ -9,7 +9,7 @@ use SVN::Fs;
 
 use base 'SVN::Web::action';
 
-our $VERSION = 0.48;
+our $VERSION = 0.49;
 
 =head1 NAME
 

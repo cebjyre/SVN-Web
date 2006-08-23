@@ -9,9 +9,11 @@ SVN::Web::Test - automated web testing for SVN::Web
 =cut
 
 package SVN::Web::Test;
-use strict;
 
-our $VERSION = 0.48;
+use strict;
+use warnings;
+
+our $VERSION = 0.49;
 
 use File::Path;
 use File::Spec;
@@ -54,6 +56,9 @@ sub new {
     } else {
 	$self->{root_url} = "http://localhost/svnweb";
     }
+
+    $self->{repo_path} = File::Spec->rel2abs($self->{repo_path});
+    $self->{repo_dump} = File::Spec->rel2abs($self->{repo_dump});
 
     $self->create_env();
     $self->create_install();
@@ -101,40 +106,6 @@ sub set_config {
     SVN::Web::set_config($config);
 }
 
-sub send_request {
-    my($self, $request) = @_;
-
-    return $self->SUPER::send_request($request) unless $fake_cgi;
-
-    my $buf = '';
-    my $uri = $request->uri;
-
-    my($proto, $hostname) = $uri_base =~ m{(https?)://([^/]+)};
-    my $port = $proto eq 'http' ? 80 : 443;
-
-    {
-        open my $outfh, '>', \$buf;
-        local *STDOUT = $outfh;
-        $uri =~ s/^$uri_base$script//;
-        $uri =~ s/\?(.*?)(?:#.*)?$//g;
-        local $ENV{QUERY_STRING}   = $1 || '';
-        local $ENV{PATH_INFO}      = $uri;
-        local $ENV{SCRIPT_NAME}    = $script;
-        local $ENV{HTTP_HOST}      = "$hostname:$port";
-        local $ENV{REQUEST_METHOD} = 'GET';
-        SVN::Web::run_cgi();
-    }
-
-    my $response = HTTP::Response->new(200);
-    my $msg = HTTP::Message->parse($buf);
-    $response->header(%{ $msg->headers() });
-    $response->content($msg->content());
-    $response->request($request);
-    $response->header("Client-Date" => HTTP::Date::time2str(time));
-
-    return $response;
-}
-
 # Create a Subversion repo from a dump file.
 sub create_env {
     my $self = shift;
@@ -145,14 +116,11 @@ sub create_env {
     plan skip_all => q{Can't find svnadmin}
       unless `svnadmin --version` =~ /version/;
 
-    my $repo_path = File::Spec->rel2abs($self->{repo_path});
-    my $repo_dump = File::Spec->rel2abs($self->{repo_dump});
-
-    rmtree([$repo_path]) if -d $repo_path;
+    rmtree([$self->{repo_path}]) if -d $self->{repo_path};
     $ENV{SVNFSTYPE} ||= (($SVN::Core::VERSION =~ /^1\.0/) ? 'bdb' : 'fsfs');
 
-    `svnadmin create --fs-type=$ENV{SVNFSTYPE} $repo_path`;
-    `svnadmin load $repo_path < $repo_dump`;
+    `svnadmin create --fs-type=$ENV{SVNFSTYPE} $self->{repo_path}`;
+    `svnadmin load $self->{repo_path} < $self->{repo_dump}`;
 }
 
 # Create a scratch area, run svnweb-install.  The generated config.yaml
@@ -166,13 +134,23 @@ sub create_install {
     warn "Created $self->{install_dir}\n";
     my $cwd = POSIX::getcwd();
     chdir($self->{install_dir});
-    system "$^X -I$cwd/blib/lib $cwd/bin/svnweb-install";
-    chdir($cwd);
+    my $lib_dir = File::Spec->catdir($cwd, 'blib', 'lib');
+    my $svnweb_install = File::Spec->catfile($cwd, 'bin', 'svnweb-install');
+
+    system "$^X -I$lib_dir $svnweb_install";
+
+    # Make the directory world-readable by all.  Otherwise, if Apache is
+    # started as root the default behaviour is to set user/group to -1.
+    # This results in the directory being unreadable by SVN::Web.
+    chmod 0755, $self->{install_dir};
+
+    chdir($cwd);		# Get back to the original directory
 
     # Change the config to point to the test repo
-    my $config = YAML::LoadFile("$self->{install_dir}/config.yaml");
-    $config->{repos}{repos} = "$cwd/t/repos";
-    YAML::DumpFile("$self->{install_dir}/config.yaml", $config);
+    my $config_file = File::Spec->catfile($self->{install_dir}, 'config.yaml');
+    my $config = YAML::LoadFile($config_file);
+    $config->{repos}{repos} = $self->{repo_path};
+    YAML::DumpFile($config_file, $config);
 
     return $self->{install_dir};
 }
@@ -200,7 +178,7 @@ sub start_server {
 	# Set a new process group, so that this, and any children, can be
 	# killed by our parent
 	POSIX::setpgid(0, $$) or die "setpgid(): $!\n";
-	
+
 	exec @cmd;
 	exit;
     }
@@ -218,8 +196,8 @@ sub start_server {
     # for it to do so, and try and reach the root of the site.  If
     # that doesn't work, lather-rinse-repeat another five times before
     # giving up.
-    sleep 1;
     foreach my $count (1..5) {
+	sleep 1;
 	last if $self->{_mech}->get($self->{root_url})->code() == 200;
 	
 	if($count == 5) {
@@ -268,7 +246,7 @@ sub walk_site {
     for my $i (0 .. $#links) {
         my $link_url = $links[$i]->url_abs;
         next                              if $seen->{$link_url};
-        next                              if $link_url !~ /localhost/;
+        next                              if $link_url !~ /(?:localhost|127\.0\.0\.1)/;
 
         ++$seen->{$link_url};
 
@@ -298,7 +276,7 @@ sub send_request {
         $uri =~ s/\?(.*?)(?:#.*)?$//g;
         local $ENV{QUERY_STRING}   = $1 || '';
         local $ENV{PATH_INFO}      = $uri;
-        local $ENV{SCRIPT_NAME}    = $script;
+        local $ENV{SCRIPT_NAME}    = "$uri_base$script";
         local $ENV{HTTP_HOST}      = "$hostname:$port";
         local $ENV{REQUEST_METHOD} = 'GET';
         SVN::Web::run_cgi();

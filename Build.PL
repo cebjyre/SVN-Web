@@ -3,6 +3,13 @@
 use strict;
 use warnings;
 
+use File::Basename;
+use Getopt::Long;
+
+use Module::Build;
+use File::Basename;
+use Getopt::Long;
+
 use Module::Build;
 
 # $SVN::Core::VERSION is set in a manner that confuses Module::Build, so
@@ -43,6 +50,7 @@ my %requires    = ('Template'                           => 0,
 		   'YAML'                               => 0,
 		   'Text::Diff'                         => 0,
 		   'Text::Diff::HTML'                   => 0,
+		   'Number::Format'                     => 0,
 		   'Template::Plugin::Number::Format'   => 0,
 		   'Locale::Maketext::Lexicon'          => 0,
 		   'Locale::Maketext::Simple'           => 0,
@@ -53,6 +61,103 @@ my %requires    = ('Template'                           => 0,
 		   'Test::WWW::Mechanize'               => 0,
 		  );
 
+=head1 NAME
+
+Build.PL
+
+=head1 SYNOPSIS
+
+  perl Build.PL [--run_apache_tests]
+                [--apache_path PATH]
+                [--apxs_path PATH]
+                [--run_apache_cgi_tests]
+                [--with_mod_perl]
+                [--run_mod_perl_tests]
+                [--mod_perl_path PATH]
+                [--run_svnweb-server_tests]
+                [--httpd_port PORT]
+                [--skip_questions]
+
+=head1 DESCRIPTION
+
+This is the build script for SVN::Web.  Since some of SVN::Web's
+functionality is optional, and/or doesn't need to be tested at install
+time, it determines the correct set of pre-requisite modules prior to
+install, and obtains some information from the user that is needed by the
+automated tests.
+
+The options are:
+
+=over
+
+=item --run_apache_tests
+
+Whether to run post-build tests that require Apache.  Use
+C<--norun_apache_tests> to disable.
+
+=item --apache_path PATH
+
+The full path to the Apache httpd binary.
+
+=item --apxs_path PATH
+
+The full path to the Apache apxs binary.
+
+=item --run_apache_cgi_tests
+
+Whether to run post-build tests that SVN::Web as a CGI script with Apache.
+Use C<--norun_apache_cgi_tests> to disable.
+
+=item --with_mod_perl
+
+Whether SVN::Web will be used under mod_perl.  Use C<--nowith_mod_perl> to
+disable.
+
+=item --run_mod_perl_tests
+
+Whether to run post-build tests that use SVN::Web as a mod_perl handler.
+Use C<--norun_mod_perl_tests> to disable.
+
+=item --mod_perl_path PATH
+
+The full path to the mod_perl shared object file (typically called
+F<mod_perl.so> or F<libperl.so>.
+
+=item --run_svnweb-server_tests
+
+Whether to run post-build tests for SVN::Web's simple web server.  Use
+C<--norun_svnweb-server_tests> to disable.
+
+=item --httpd_port PORT
+
+Specify the PORT that the Apache and svnweb-server tests should use.
+
+=item --skip_questions
+
+Take the command line options as read, and don't ask the user any questions
+before creating the build script.
+
+=back
+
+=cut
+
+my $skip_questions = 0;
+
+GetOptions('with_mod_perl'           => sub { $requires{'Apache::Request'} = 0; },
+	   'run_apache_tests'        => \$feature{run_apache_tests},
+	   'apache_path=s'           => \$config_data{apache_path},
+	   'apxs_path=s'             => \$config_data{apxs_path},
+	   'run_apache_cgi_tests'    => \$feature{run_apache_cgi_tests},
+	   'run_mod_perl_tests'      => \$feature{run_mod_perl_tests},
+	   'mod_perl_path=s'         => \$config_data{mod_perl_path},
+	   'run_svnweb-server_tests' => \$feature{'run_svnweb-server_tests'},
+	   'httpd_port=i'            => \$config_data{httpd_port},
+	   'skip_questions'          => \$skip_questions,
+	  );
+
+
+goto build if $skip_questions;
+
 # ------------------------------------------------------------------------
 
 print <<EOM;
@@ -60,28 +165,19 @@ print <<EOM;
 Welcome to SVN::Web.  The installer will now ask you a few questions to
 make sure that the list of modules that SVN::Web requires is correct.
 
-EOM
+Each question has a command line option associated with it, and there is
+also a command line option to skip all the questions.
 
-# ------------------------------------------------------------------------
+To do this, press Ctrl-C now and re-run 'perl Build.PL' with the
+appropriate options.  To see the documentation for the options run:
 
-print <<EOM;
+    perldoc Build.PL
 
-SVN::Web can be used as a mod_perl handler.  This is much more
-efficient than running it as a CGI script.
-
-If you would like to use mod_perl support Apache::Request must be
-installed.  If you answer yes to this question Apache::Request will be
-added to the list of modules that SVN::Web requires.
-
-Answering "no" to this question does not stop you running SVN::Web
-under mod_perl at a later date, it just stops the installer from
-looking for the necessary Perl modules.
+Press RETURN to continue.
 
 EOM
 
-if(Module::Build->y_n('==> Will you be using mod_perl?', 'n')) {
-    $requires{'Apache::Request'} = 0;
-}
+<>;
 
 # ------------------------------------------------------------------------
 
@@ -109,10 +205,57 @@ while($feature{run_apache_tests}) {
 	next;
     }
 
+    $config_data{apxs_path} =
+      Module::Build->prompt('==> Please enter the full path to your apxs binary', dirname($config_data{apache_path}) . '/apxs');
+
+    if(! -x $config_data{apxs_path}) {
+        print "The path\n\n";
+	print "  '", $config_data{apxs_path}, "'\n\n";
+	print "is not executable.\n\n";
+	next;
+    }
+
     last;
 } continue {
     $feature{run_apache_tests} =
       Module::Build->y_n('==> Do you still want to run the Apache tests?', 'n');
+}
+
+# ------------------------------------------------------------------------
+
+# Work out which version of Apache we're using
+if($feature{run_apache_tests}) {
+    my $httpd_v = `$config_data{apache_path} -v`;
+    my($httpd_version) = $httpd_v =~ m{^Server version: Apache/(\d)\.};
+    $config_data{httpd_version} = $httpd_version;
+
+    if($httpd_version == 1) {
+        print "Apache 1.x detected\n";
+        $requires{'Apache::Request'} = 0;
+    }
+
+    if($httpd_version == 2) {
+        print "Apache 2.x detected\n";
+        $requires{'Apache2::Request'} = 0;
+    }
+
+    if($httpd_version < 1 or $httpd_version > 2) {
+        print <<"EOM";
+The output from running
+
+    $config_data{apache_path} -v
+
+did not produce something this program could parse to determine your
+Apache version number.  The output was:
+
+$httpd_v
+
+Please report this as a bug.  In the meantime, the Apache tests have
+been disabled.
+EOM
+
+	$feature{run_apache_tests} = 0;
+    }
 }
 
 # ------------------------------------------------------------------------
@@ -130,20 +273,43 @@ EOM
 
 # ------------------------------------------------------------------------
 
-if($feature{run_apache_tests} and exists $requires{'Apache::Request'}) {
-    print <<EOM;
-
-You have said you want to run SVN::Web under mod_perl.
-
-EOM
-
+if($feature{run_apache_tests}) {
     $feature{run_mod_perl_tests} =
       Module::Build->y_n(q{==> Do you want to test mod_perl support?}, 'y');
 } else {
     $feature{run_mod_perl_tests} = 0;
 }
 
-$requires{'Apache::Request'} = 0 if $feature{run_mod_perl_tests};
+# Find the mod_perl .so
+my $libexec_dir;
+if(exists $config_data{apxs_path}) {
+    chomp($libexec_dir = `$config_data{apxs_path} -q LIBEXECDIR`);
+    $config_data{libexec_dir} = $libexec_dir;
+}
+
+foreach my $file (qw(mod_perl.so libperl.so)) {
+    if(-f "$libexec_dir/$file") {
+	$config_data{mod_perl_path} = "$libexec_dir/$file";
+	last;
+    }
+}
+
+while($feature{run_mod_perl_tests}) {
+    $config_data{mod_perl_path} =
+      Module::Build->prompt('==> Please enter the full path to your mod_perl library:', $config_data{mod_perl_path});
+
+    if(! -e $config_data{mod_perl_path}) {
+        print "The path\n\n";
+	print "  '", $config_data{mod_perl_path}, "'\n\n";
+	print "does not exist.\n\n";
+	next;
+    }
+
+    last;
+} continue {
+    $feature{run_mod_perl_tests} =
+      Module::Build->y_n('==> Do you still want to run the mod_perl tests?', 'n');
+}
 
 # ------------------------------------------------------------------------
 
@@ -223,6 +389,8 @@ if(Module::Build->y_n('==> Do you want to install these plugins?', 'y')) {
 }
 
 # ------------------------------------------------------------------------
+
+build:
 
 $b = $class->new(
     dist_name          => 'SVN-Web',

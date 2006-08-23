@@ -63,9 +63,16 @@ my $test_sub = sub {
     }
 
     if($can_parse_rss and ($mech->uri() =~ m{/rss/})) {
-	my $parse_result = $rss->parse_string($mech->content());
-	ok(defined $parse_result, 'RSS parsed successfully')
+	my $feed = $rss->parse_string($mech->content());
+	ok(defined $feed, 'RSS parsed successfully')
 	  or diag $rss->errstr(), diag $mech->content();
+
+	# Make sure that each item's <link> element is a full URL
+	foreach my $item ($feed->query('//item')) {
+	    my $node = $item->query('link');
+	    like($node->text_content(), qr/^http/, 'RSS link is fully qualified')
+	      or diag $node->text_content();
+	}
     }
 };
 

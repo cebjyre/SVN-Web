@@ -1,8 +1,9 @@
 package SVN::Web::action;
 
-our $VERSION = 0.48;
+our $VERSION = 0.49;
 
 use POSIX qw();
+use Time::Local qw(timegm_nocheck);
 use Time::Zone qw();
 
 use SVN::Core;
@@ -299,7 +300,12 @@ sub format_svn_timestamp {
     my $self    = shift;
     my $cstring = shift;
 
-    my $time = SVN::Core::time_from_cstring($cstring) / 1_000_000;
+    # Note: Buggy on Solaris
+    # my $time = SVN::Core::time_from_cstring($cstring) / 1_000_000;
+    my(@time) = $cstring =~ /^(....)-(..)-(..)T(..):(..):(..)/;
+
+    my $time = timegm_nocheck($time[5], $time[4],     $time[3],
+                              $time[2], $time[1] - 1, $time[0]);
 
     if($self->{config}->{timezone} eq 'local') {
 	return POSIX::strftime($self->{config}->{timedate_format},

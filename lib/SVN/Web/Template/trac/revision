@@ -19,7 +19,7 @@
 </div>
 
 <div id="jumprev">
-  <form action="[% cgi.self_url %]" method="get">
+  <form action="[% self_uri %]" method="get">
    <div>
     <label for="rev">[%|l%](goto revision)[%END%]</label>
     <input type="text" id="rev" name="rev" value="[% rev %]" size="4" />
