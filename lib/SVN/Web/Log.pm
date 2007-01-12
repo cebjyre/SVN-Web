@@ -4,12 +4,11 @@ use strict;
 use warnings;
 
 use SVN::Core;
-use SVN::Repos;
-use SVN::Fs;
+use SVN::Ra;
 
 use base 'SVN::Web::action';
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 =head1 NAME
 
@@ -23,6 +22,11 @@ In F<config.yaml>
     ...
     log:
       class: SVN::Web::Log
+      action_menu:
+        show:
+          - file
+          - directory
+        link_text: (view revision log)
     ...
 
 =head1 DESCRIPTION
@@ -49,9 +53,18 @@ youngest revision.
 
 =over 8
 
+=item context
+
+Either C<directory> or C<file>.
+
 =item at_head
 
 A boolean value, true if the log starts with the most recent revision.
+
+=item at_oldest
+
+A boolean value, true if the list of revisions (C<revs>) includes the oldest
+revision for this path.
 
 =item isdir
 
@@ -102,7 +115,8 @@ following keys.
 =item action
 
 A single letter indicating the action that was carried out on the
-path.  A file was either added C<A>, modified C<M>, or deleted C<D>.
+path.  A file was either added C<A>, modified C<M>, replaced C<R>,
+or deleted C<D>.
 
 =item copyfrom
 
@@ -120,9 +134,7 @@ the file that it was copied from.
 
 =item limit
 
-The maximum number of log entries that were retrieved.  This is not
-necessarily the same as the total number of log entries that were
-retrieved.
+The value of the C<limit> parameter.
 
 =back
 
@@ -141,125 +153,146 @@ sub _log {
         rev    => $rev,
         author => $author,
         date   => $self->format_svn_timestamp($date),
-        msg    => $msg
+        msg    => $msg,
     };
 
-    my $root = $self->{repos}->fs()->revision_root($rev);
-
-    my $subpool = SVN::Pool->new($pool);
     $data->{paths} = {
         map {
-            $_ => {
-                action      => $paths->{$_}->action(),
-                copyfrom    => $paths->{$_}->copyfrom_path(),
-                copyfromrev => $paths->{$_}->copyfrom_rev(),
-                isdir => $root->check_path($_, $subpool) == $SVN::Node::dir,
-                },
-                $subpool->clear()
-            } keys %$paths
+	    $_ => { action      => $paths->{$_}->action(),
+		    copyfrom    => $paths->{$_}->copyfrom_path(),
+		    copyfromrev => $paths->{$_}->copyfrom_rev(),
+		    }
+	} keys %$paths
     };
-
-    foreach my $path (keys %{ $data->{paths} }) {
-        if(defined $data->{paths}{$path}{copyfrom}) {
-            if($root->check_path($data->{paths}{$path}{copyfrom})
-                == $SVN::Node::dir) {
-                if($data->{paths}{$path}{copyfrom} !~ m|/$|) {
-                    $data->{paths}{$path}{copyfrom} .= '/';
-                }
-            }
-        }
-    }
 
     push @{ $self->{REVS} }, $data;
 }
 
-# XXX: stolen from svk::util
-sub traverse_history {
-    my %args = @_;
-
-    my $old_pool = SVN::Pool->new;
-    my $new_pool = SVN::Pool->new;
-    my $spool    = SVN::Pool->new_default;
-
-    my $hist = $args{root}->node_history($args{path}, $old_pool);
-    my $rv;
-
-    while($hist = $hist->prev(($args{cross} || 0), $new_pool)) {
-        $rv = $args{callback}->($hist->location($new_pool));
-        last if !$rv;
-        $old_pool->clear;
-        $spool->clear;
-        ($old_pool, $new_pool) = ($new_pool, $old_pool);
-    }
-
-    return $rv;
-}
-
 sub cache_key {
-    my $self = shift;
+    my $self  = shift;
     my $path  = $self->{path};
-    my $fs    = $self->{repos}->fs();
 
     my(undef, undef, $act_rev, $head) = $self->get_revs();
 
-    my $root  = $fs->revision_root($act_rev);
-    my $kind  = $root->check_path($path);
-
-    return if $kind == $SVN::Node::dir and $path !~ m{/$};
-
-    my $limit = $self->{cgi}->param('limit') || 20;
+    my $limit = $self->_get_limit();
 
     return "$act_rev:$limit:$head:$path";
 }
 
+# Obtain the correct 'limit' value.  Use the CGI parameter if it's defined,
+# supporting the special value 'all' to mean all revisions.  Default to 20
+# if it's not defined.
+sub _get_limit {
+    my $self = shift;
+
+    my $limit = $self->{cgi}->param('limit');
+    if(defined $limit) {
+	return $limit eq '(all)' ? 0 : $limit;
+    }
+
+    return 20;
+}
+
 sub run {
     my $self  = shift;
-    my $pool  = SVN::Pool->new_default_sub;
-    my $fs    = $self->{repos}->fs;
-    my $limit = $self->{cgi}->param('limit') || 20;
-    my $rev   = $self->{cgi}->param('rev') || $fs->youngest_rev();
-    my $root  = $fs->revision_root($rev);
+    my $ctx   = $self->{repos}{client};
+    my $ra    = $self->{repos}{ra};
+    my $uri   = $self->{repos}{uri};
+    my $limit = $self->_get_limit();
+    my $rev   = $self->{cgi}->param('rev') || $ra->get_latest_revnum();
     my $path  = $self->{path};
 
-    my(undef, undef, undef, $head) = $self->get_revs();
+    $path =~ s{/+$}{};
+    my(undef, $yng_rev, undef, $head) = $self->get_revs();
 
-    my $kind = $root->check_path($path);
-    if($kind == $SVN::Node::dir) {
-        if($path !~ m|/$|) {
-            print $self->{cgi}
-                ->redirect(-uri => $self->{cgi}->self_url() . '/');
-        }
+    # Handle log paging
+    my $at_oldest;
+    if($limit) {		# $limit not 'all'
+	# Get one more log entry than asked for.  If we get back this
+	# many log entries then we know there's at least one more page
+	# of results to show.  If we get back $limit or less log
+	# entries then we're on the last page.
+	#
+	# If we're not on the last page then pop off the extra log entry
+	$ra->get_log([$path], $rev, 1, $limit + 1, 1, 1,
+		     sub { $self->_log(@_) });
+
+	$at_oldest = @{ $self->{REVS} } <= $limit;
+
+	pop @{ $self->{REVS} } unless $at_oldest;
+    } else {
+	# We must be displaying to the oldest rev, so no paging required
+	$ra->get_log([$path], $rev, 1, $limit, 1, 1,
+		     sub { $self->_log(@_) });
+
+	$at_oldest = 1;
     }
 
-    my $endrev = 0;
-    if($limit) {
-        my $left = $limit;
-        traverse_history(
-            root     => $root,
-            path     => $path,
-            cross    => 0,
-            callback => sub { $endrev = $_[1]; return --$left }
-        );
-    }
+#    $self->_resolve_changed_paths();
 
-    #    SVK::Command::Log::do_log (repos => $self->{repos}, limit => $limit,
-    #			       path => $self->{path},
-    #			       fromrev => $fs->youngest_rev, torev => -1,
-    #			       cb_log => sub {$self->_log(@_)});
+    my $is_dir;
+    $ctx->info("$uri$path", $rev, $rev,
+	       sub {
+		   my($path, $info, $pool) = @_;
+		   $is_dir = $info->kind() == $SVN::Node::dir;
+	       }, 0);
 
-    $self->{repos}->get_logs([$path], $rev, $endrev, 1, 0,
-        sub { $self->_log(@_) });
     return {
         template => 'log',
         data     => {
-            isdir        => ($root->is_dir($path)),
+	    context      => $is_dir ? 'directory' : 'file',
+            isdir        => $is_dir,
             revs         => $self->{REVS},
             limit        => $limit,
             rev          => $rev,
-            youngest_rev => $fs->youngest_rev(),
+            youngest_rev => $yng_rev,
+	    at_oldest    => $at_oldest,
             at_head      => $head,
         }
     };
 }
 
+# Add 'isdir' keys to the paths if appropriate.  Also, add trailing slashes
+# if necessary.
+#
+# This code used to be in get_log() when it used the repos layer.  When
+# the code was changed to use the ra layer it had to be moved out, as you
+# can't call ra functions from a get_log() callback.
+#
+# XXX Very similar code in Revision.pm, needs refactoring
+sub _resolve_changed_paths {
+    my $self = shift;
+    my $ctx  = $self->{repos}{client};
+    my $ra   = $self->{repos}{ra};
+    my $uri  = $self->{repos}{uri};
+
+    my $subpool = SVN::Pool->new();
+    my $node_kind;
+
+    foreach my $data (@{ $self->{REVS} }) {
+	foreach my $path (keys %{ $data->{paths} }) {
+	    $subpool->clear();
+
+
+	    $ctx->info("$uri$path", $data->{rev}, $data->{rev},
+		       sub { $node_kind = $_[1]->kind() }, 0, $subpool);
+
+	    $data->{paths}{$path}{isdir} = $node_kind == $SVN::Node::dir;
+	}
+    }
+}
+
 1;
+
+=head1 COPYRIGHT
+
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

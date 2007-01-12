@@ -1,6 +1,12 @@
 package SVN::Web::X;
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
+
+use Exception::Class('SVN::Web::X' => { fields => ['vars'], },);
+
+1;
+
+__END__
 
 =head1 NAME
 
@@ -103,7 +109,15 @@ In the F<en.po> file for the localised text.
 As you can see, the localised text can be much friendlier and more
 informative to the user than the error message.
 
-=cut
+=head1 COPYRIGHT
 
-use Exception::Class('SVN::Web::X' => { fields => ['vars'], },);
-1;
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

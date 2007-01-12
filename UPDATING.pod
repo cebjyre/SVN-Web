@@ -8,8 +8,8 @@ Notes on updating from previous versions of SVN::Web
 
 =head1 DESCRIPTION
 
-If you have not modified the supplied templates and localisation files
-the update can be carried out by:
+If you have not modified the supplied template files the update can
+be carried out by:
 
 =over 4
 
@@ -24,7 +24,7 @@ Removing all the files in your current C<svnweb> directory.
 =item 3.
 
 Running C<svnweb-install> from this distribution.  This will copy the new
-templates and localisation files, as well as creating a new F<config.yaml>.
+templates, as well as creating a new F<config.yaml>.
 
 =item 4.
 
@@ -35,6 +35,63 @@ any changes, as described below.
 
 If you have made local modifications then the following information should
 help you merge the changes in this version in to your modified files.
+
+=head2 0.49 to 0.50
+
+=over 4
+
+=item
+
+The configuration file must now contain a C<version> key, the value of
+which must match the SVN::Web version.  If it is not present, or does
+not match, SVN::Web will C<die()>, and generate an appropriate error in
+the logs.
+
+Add this line:
+
+  version: 0.50
+
+to F<config.yaml>, after making sure that you have updated the
+configuration file to contain all the necessary new directives.
+
+=item
+
+There are many new configuration options for actions.  Either run
+C<svnweb-install>, as advised above, or view the documentation for
+each action, which has been updated to show the new entries that
+should be placed in F<config.yaml> for the action.
+
+This change has also affected all the action templates save for
+F<list> and F<rss>.  There is a new F<Template/trac/_action_menu>
+template.
+
+=item
+
+L<SVN::Web::Blame> has been added, with an associated
+F<Template/trac/blame> template.
+
+=item
+
+Diff generation has changed, resulting in changes to F<Template/trac/diff>
+and F<Template/trac/revision>.  There is a new F<Template/trac/_diff>
+template.
+
+=item
+
+The F<Template/trac/log> template has changed to support paging through
+results and changing how many results are displayed per page.
+
+=item
+
+The F<Template/trac/rss> template has changed to wrap the contents
+of the <description> element in a CDATA marker.
+
+=item
+
+The F<I18N/en.po> localisation file contains several new and updated
+entries.
+
+=back
 
 =head2 0.48 to 0.49
 

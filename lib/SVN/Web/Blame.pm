@@ -1,4 +1,4 @@
-package SVN::Web::View;
+package SVN::Web::Blame;
 
 use strict;
 use warnings;
@@ -9,7 +9,7 @@ our $VERSION = 0.50;
 
 =head1 NAME
 
-SVN::Web::View - SVN::Web action to view a file in the repository
+SVN::Web::Blame - SVN::Web action to show blame/annotation information
 
 =head1 SYNOPSIS
 
@@ -17,18 +17,18 @@ In F<config.yaml>
 
   actions:
     ...
-    view:
-      class: SVN::Web::View
+    blame:
+      class: SVN::Web::Blame
       action_menu:
         show:
           - file
-        link_text: (view file)
+        link_text: (view blame)
     ...
 
 =head1 DESCRIPTION
 
-Shows a specific revision of a file in the Subversion repository.  Includes
-the commit information for that file.
+Shows a specific revision of a file in the Subversion repository, with
+blame/annotation information.
 
 =head1 OPTIONS
 
@@ -75,22 +75,35 @@ The youngest interesting revision of the file.
 The file's MIME type, extracted from the file's C<svn:mime-type>
 property.  If this is not set then C<text/plain> is used.
 
-=item file
+=item blame_details
 
-The contents of the file.
+An array of hashes.  Each entry in the array corresponds to a line from
+the file.  Each hash contains the following keys:
+
+=over
+
+=item line_no
+
+The line number (starting with 0) in the file.
+
+=item revision
+
+The revision in which this line was last changed.
 
 =item author
 
-The revision's author.
+The author of the revision that changed this line
 
 =item date
 
-The date the revision was committed, formatted according to
+The date on which the line was changed, formatted according to
 L<SVN::Web/"Time and date formatting">.
 
-=item msg
+=item line
 
-The revision's commit message.
+The contents of this line.
+
+=back
 
 =back
 
@@ -99,19 +112,6 @@ The revision's commit message.
 None.
 
 =cut
-
-sub _log {
-    my($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
-
-    return unless $rev > 0;
-
-    return {
-        rev    => $rev,
-        author => $author,
-        date   => $self->format_svn_timestamp($date),
-        msg    => $msg
-    };
-}
 
 sub cache_key {
     my $self = shift;
@@ -133,15 +133,17 @@ sub run {
 
     my $rev = $act_rev;
 
-    # Get the log for this revision of the file
-    $ra->get_log([$path], $rev, $rev, 1, 1, 1,
-        sub { $self->{REV} = $self->_log(@_) });
+    my @blame_details;
 
-    # Get the text for this revision of the file
-    my($fh, $fc) = (undef, '');
-    open($fh, '>', \$fc);
-    $ctx->cat($fh, $uri . $path, $rev);
-    close($fc);
+    $ctx->blame("$uri$path", 1, $rev, sub {
+		    push @blame_details, {
+			line_no => $_[0],
+			rev     => $_[1],
+			author  => $_[2],
+			date    => $self->format_svn_timestamp($_[3]),
+			line    => $_[4],
+		    };
+		});
 
     my $mime_type;
     my $props = $ctx->propget('svn:mime-type', $uri . $path, $rev, 0);
@@ -152,15 +154,14 @@ sub run {
     }
 
     return {
-        template => 'view',
+        template => 'blame',
         data     => {
-	    context      => 'file',
-            rev          => $act_rev,
-            youngest_rev => $yng_rev,
-	    at_head      => $head,
-            mimetype     => $mime_type,
-            file => $fc,
-            %{ $self->{REV} },
+	    context       => 'file',
+            rev           => $act_rev,
+            youngest_rev  => $yng_rev,
+	    at_head       => $head,
+            mimetype      => $mime_type,
+	    blame_details => \@blame_details,
         }
     };
 }
@@ -169,9 +170,7 @@ sub run {
 
 =head1 COPYRIGHT
 
-Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
-
-Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+Copyright 2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

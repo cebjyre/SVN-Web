@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+
 # -*- Mode: cperl; cperl-indent-level: 4 -*-
 
 use strict;
@@ -137,4 +139,4 @@ The current maintainer is Nik Clayton, <nikc@cpan.org>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2006 Nik Clayton.  All Rights Reserved.
+Copyright 2006-2007 Nik Clayton.  All Rights Reserved.

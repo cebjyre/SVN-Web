@@ -65,5 +65,5 @@ ServerSignature Off
 </Directory>
 [% END %]
 
-Alias /svnweb [% svnweb_install_dir %]
+Alias /svnweb [% svnweb_install_dir %]/
 

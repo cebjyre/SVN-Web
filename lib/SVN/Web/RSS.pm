@@ -3,7 +3,7 @@ package SVN::Web::RSS;
 use strict;
 use SVN::Web::Log;
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 =head1 NAME
 
@@ -17,6 +17,13 @@ In F<config.yaml>
     ...
     rss:
       class: SVN::Web::RSS
+      action_menu:
+        show:
+          - file
+          - directory
+        link_text: (rss)
+        head_only: 1
+        icon: /css/trac/feed-icon-16x16.png
       opts:
         publisher: address@domain
     ...
@@ -89,3 +96,16 @@ sub run {
 }
 
 1;
+
+=head1 COPYRIGHT
+
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

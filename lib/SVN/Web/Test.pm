@@ -13,7 +13,7 @@ package SVN::Web::Test;
 use strict;
 use warnings;
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 use File::Path;
 use File::Spec;
@@ -51,10 +51,12 @@ sub new {
       exists $self->{httpd_port} ? Test::WWW::Mechanize->new(@mech_args)
 	                         : SVN::Web::Test::Mechanize->new(@mech_args);
 
-    if(exists $self->{httpd_port}) {
-	$self->{root_url} = "http://localhost:$self->{httpd_port}/svnweb";
-    } else {
-	$self->{root_url} = "http://localhost/svnweb";
+    if(! exists $self->{root_url}) {
+	if(exists $self->{httpd_port}) {
+	    $self->{root_url} = "http://localhost:$self->{httpd_port}/svnweb";
+	} else {
+	    $self->{root_url} = "http://localhost/svnweb";
+	}
     }
 
     $self->{repo_path} = File::Spec->rel2abs($self->{repo_path});
@@ -88,15 +90,61 @@ sub set_config {
     $fake_cgi = 1;
 
     my $config = {
+	version => $VERSION,
         actions => {
-            browse   => { class => 'SVN::Web::Browse' },
-            checkout => { class => 'SVN::Web::Checkout' },
-            diff     => { class => 'SVN::Web::Diff' },
-            list     => { class => 'SVN::Web::List' },
-            log      => { class => 'SVN::Web::Log' },
-            revision => { class => 'SVN::Web::Revision' },
-            rss      => { class => 'SVN::Web::RSS' },
-            view     => { class => 'SVN::Web::View' },
+	    'browse' => {
+		'class' => 'SVN::Web::Browse',
+		'action_menu' => {
+		    'show' => [ 'directory' ],
+		    'link_text' => '(browse directory)'
+		}
+	    },
+	    'blame' => {
+		'class' => 'SVN::Web::Blame',
+		'action_menu' => {
+		    'show' => [ 'file' ],
+		    'link_text' => '(view blame)'
+		}
+	    },
+	    'checkout' => {
+		'class' => 'SVN::Web::Checkout',
+		'action_menu' => {
+		    'show' => [ 'file' ],
+		    'link_text' => '(checkout)'
+		}
+	    },
+	    'revision' => {
+		'class' => 'SVN::Web::Revision'
+	    },
+	    'view' => {
+		'class' => 'SVN::Web::View',
+		'action_menu' => {
+		    'show' => [ 'file' ],
+		    'link_text' => '(view file)'
+		}
+	    },
+	    'diff' => {
+		'class' => 'SVN::Web::Diff'
+	    },
+	    'log' => {
+		'class' => 'SVN::Web::Log',
+		'action_menu' => {
+		    'show' => [ 'file', 'directory' ],
+		    'link_text' => '(view revision log)'
+		}
+	    },
+	    'rss' => {
+		'class' => 'SVN::Web::RSS',
+		'action_menu' => {
+		    'icon' => '/css/trac/feed-icon-16x16.png',
+		    'show' => [ 'file', 'directory' ],
+		    'head_only' => '1',
+		    'link_text' => '(rss)'
+		}
+	    },
+	    'list' => {
+		'class' => 'SVN::Web::List'
+	    }
         },
         cgi_class    => 'CGI',
         templatedirs => ['lib/SVN/Web/Template/trac'],
@@ -229,7 +277,7 @@ sub _sig {
 
 sub stop_server {
     my $self = shift;
-    kill 15, -$self->{_pid};
+    kill 9, -$self->{_pid};
     wait;
     delete $self->{_pid};
 }
@@ -245,8 +293,14 @@ sub walk_site {
     my @links = $self->mech()->links();
     for my $i (0 .. $#links) {
         my $link_url = $links[$i]->url_abs;
-        next                              if $seen->{$link_url};
-        next                              if $link_url !~ /(?:localhost|127\.0\.0\.1)/;
+
+	diag sprintf "Fetching %d/%d %s (%s)",
+	    $i + 1, $#links + 1, $link_url, $links[$i]->text()
+		if exists $ENV{TEST_VERBOSE} and $ENV{TEST_VERBOSE};
+
+        next if $seen->{$link_url};
+	diag "Skipping $link_url", next
+	    if $link_url !~ /(?:localhost|127\.0\.0\.1)/;
 
         ++$seen->{$link_url};
 
@@ -298,7 +352,7 @@ Chia-liang Kao E<lt>clkao@clkao.orgE<gt> and E<lt>nik@cpan.org<gt>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005-2006 by Nik Clayton E<lt>nik@cpan.org<gt>.
+Copyright (c) 2005-2007 by Nik Clayton E<lt>nik@cpan.org<gt>.
 
 Copyright (c) 2004 by Chia-liang Kao E<lt>clkao@clkao.orgE<gt>.
 

@@ -5,13 +5,13 @@ use warnings;
 
 use base 'SVN::Web::action';
 
-use Text::Diff;
+use File::Temp;
 use SVN::Core;
-use SVN::Repos;
-use SVN::Fs;
+use SVN::Ra;
 use SVN::Web::X;
+use SVN::Web::DiffParser;
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 =head1 NAME
 
@@ -26,6 +26,7 @@ In F<config.yaml>
     revision:
       class: SVN::Web::Revision
       opts:
+        max_diff_size: 200_000
         show_diff: 1 # or 0
     ...
 
@@ -38,6 +39,14 @@ Shows information about a specific revision in a Subversion repository.
 The following configuration options may be specified in F<config.yaml>.
 
 =over
+
+=item max_diff_size
+
+If showing the diff (see C<show_diff>), this determines the maximum size
+of the diff that will be shown.  If the size of the generated diff (in
+bytes) is larger than this figure then it is not shown.
+
+Defaults to 200,000 bytes.
 
 =item show_diff
 
@@ -57,16 +66,15 @@ Defaults to 1.
 The revision to show.  If not provided then use the repository's
 youngest revision.
 
-=item context
-
-The number of lines of context to show around each change.  Uses the global
-default if not set.
-
 =back
 
 =head1 TEMPLATE VARIABLES
 
 =over 8
+
+=item context
+
+Always C<revision>.
 
 =item rev
 
@@ -103,28 +111,23 @@ A boolean value, true if the given path is a directory.
 
 =item diff
 
-The HTML diff for this path (if it was modified in this revision).  The diff
-is generated using L<Text::Diff::HTML>.
+A L<SVN::Web::DiffParser> object representing the diff.  This may be undef,
+if the generated diff was larger than C<max_diff_size> or if C<show_diff>
+is false.
 
-A diff is only generated if:
+=item diff_size
 
-=over 3
+The size of the generated diff (before parsing).
 
-=item a)
+=item max_diff_size
 
-The file was modified.
-
-=item b)
-
-The file was copied from another file, and the new file and the old
-file have different MD5 checksums.
-
-=back
+The configured maximum diff size.
 
 =item action
 
 A single letter indicating the action that carried out on the path.  A
-file was either added C<A>, modified C<M>, or deleted C<D>.
+file was either added C<A>, modified C<M>, replaced C<R>, or deleted
+C<D>.
 
 =item copyfrom
 
@@ -144,44 +147,38 @@ the file that it was copied form.
 
 =over 4
 
-=item (no revision)
+=item (revision %1 does not exist)
 
-The C<rev> parameter was not given.
+The given revision does not exist in the repository.
 
 =back
 
 =cut
 
-my %default_opts = (show_diff => 1);
+my %default_opts = (
+    max_diff_size => 200_000,
+    show_diff     => 1,
+);
 
 sub _log {
     my($self, $paths, $rev, $author, $date, $msg, $pool) = @_;
-    $pool->default;
+
     my $data = {
         rev    => $rev,
         author => $author,
         date   => $self->format_svn_timestamp($date),
-        msg    => $msg
+        msg    => $msg,
     };
+
     $data->{paths} = {
         map {
-            $_ => {
-                action      => $paths->{$_}->action,
-                copyfrom    => $paths->{$_}->copyfrom_path,
-                copyfromrev => $paths->{$_}->copyfrom_rev,
-                }
-            } keys %$paths
+	    $_ => { action      => $paths->{$_}->action(),
+		    copyfrom    => $paths->{$_}->copyfrom_path(),
+		    copyfromrev => $paths->{$_}->copyfrom_rev(),
+		    }
+	} keys %$paths
     };
-    my $root    = $self->{repos}->fs->revision_root($rev);
-    my $oldroot = $self->{repos}->fs->revision_root($rev - 1);
-    my $subpool = SVN::Pool->new($pool);
-    for(keys %{ $data->{paths} }) {
-        $data->{paths}{$_}{isdir} = 1
-            if $data->{paths}{$_}{action} eq 'D'
-            ? $oldroot->is_dir($_, $subpool)
-            : $root->is_dir($_,    $subpool);
-        $subpool->clear();
-    }
+
     return $data;
 }
 
@@ -190,7 +187,7 @@ sub cache_key {
 
     return $self->{cgi}->param('rev') if defined $self->{cgi}->param('rev');
 
-    return $self->{repos}->fs()->youngest_rev();
+    return $self->{repos}{ra}->get_latest_revnum();
 }
 
 sub run {
@@ -198,11 +195,14 @@ sub run {
 
     $self->{opts} = { %default_opts, %{ $self->{opts} } };
 
-    my $pool = SVN::Pool->new_default_sub;
-    my $fs   = $self->{repos}->fs();
-    my $yrev = $fs->youngest_rev();
+    my $ctx  = $self->{repos}{client};
+    my $ra   = $self->{repos}{ra};
+    my $uri  = $self->{repos}{uri};
+    my $yrev = $ra->get_latest_revnum();
 
     my $rev  = $self->{cgi}->param('rev');
+    my $max_diff_size = $self->{opts}{max_diff_size};
+
     $rev = $yrev unless defined $rev;
 
     SVN::Web::X->throw(
@@ -211,98 +211,91 @@ sub run {
         )
         if $rev > $yrev;
 
-    $self->{repos}->get_logs(['/'], $rev, $rev, 1, 0,
+    $ra->get_log(['/'], $rev, $rev, 1, 1, 1,
         sub { $self->{REV} = $self->_log(@_) });
 
-    $self->make_diffs($rev) if $self->{opts}{show_diff};
+    $self->_resolve_changed_paths();
+
+    my $diff;
+    my $diff_size = 0;
+    if($self->{opts}{show_diff}) {
+	my($out_h, $out_fn) = File::Temp::tempfile();
+	my($err_h, $err_fn) = File::Temp::tempfile();
+	
+	$ctx->diff([], $uri, $rev - 1, $uri, $rev, 1, 1, 0, $out_h, $err_h);
+
+	my $out_c;
+	local $/ = undef;
+	seek($out_h, 0, 0);
+	$out_c = <$out_h>;
+
+	unlink($out_fn);
+	unlink($err_fn);
+	close($out_h);
+	close($err_h);
+
+	$diff_size = length($out_c);
+	if($diff_size <= $max_diff_size) {
+	    $diff = SVN::Web::DiffParser->new($out_c);
+	}
+    }
 
     return {
-        template => 'revision',
-        data     => {
-            rev          => $rev,
-            youngest_rev => $yrev,
-            %{ $self->{REV} }
-        }
+	template => 'revision',
+	data     => {
+	    context       => 'revision',
+	    rev           => $rev,
+	    youngest_rev  => $yrev,
+	    diff          => $diff,
+	    diff_size     => $diff_size,
+	    max_diff_size => $max_diff_size,
+	    %{ $self->{REV} },
+	}
     };
 }
 
-sub make_diffs {
-    my $self = shift;
-    my $rev  = shift;
+# Add 'isdir' keys to the paths if appropriate.
+#
+# This code used to be in get_log() when it used the repos layer.  When
+# the code was changed to use the ra layer it had to be moved out, as you
+# can't call ra functions from a get_log() callback.
+#
+# XXX Very similar code in Log.pm, needs refactoring
+sub _resolve_changed_paths {
+    my $self    = shift;
+    my $ctx     = $self->{repos}{client};
+    my $ra      = $self->{repos}{ra};
+    my $uri     = $self->{repos}{uri};
+    my $subpool = SVN::Pool->new();
+    my $data    = $self->{REV};
 
-    my $fs      = $self->{repos}->fs();
-    my $context = $self->{cgi}->param('context')
-        || $self->{config}->{diff_context};
+    my $node_kind;
 
-    # Generate the diffs for each file
-    foreach my $path (keys %{ $self->{REV}->{paths} }) {
-        next if $self->{REV}->{paths}{$path}{isdir};
+    # Set the 'isdir' key
+    foreach my $path (keys %{ $data->{paths} }) {
+	$subpool->clear();
 
-        if($self->{REV}->{paths}{$path}{action} eq 'M') {
-            my $root1 = $fs->revision_root($rev);
-            my $root2 = $fs->revision_root($rev - 1);
+	# Ignore deleted nodes
+	if($data->{paths}{$path}{action} ne 'D') {
+	    $ctx->info("$uri$path", $data->{rev}, $data->{rev},
+		       sub { $node_kind = $_[1]->kind() }, 0, $subpool);
 
-            my $kind;
-            $kind = $root1->check_path($path);
-            next if $kind == $SVN::Node::none;
-            $kind = $root2->check_path($path);
-            next if $kind == $SVN::Node::none;
-
-            # Skip the diff if either of the files have a non-text MIME type
-            my $mt1 = $root1->node_prop($path, 'svn:mime-type')
-                || 'text/plain';
-            my $mt2 = $root2->node_prop($path, 'svn:mime-type')
-                || 'text/plain';
-            next if($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
-
-            $self->{REV}->{paths}{$path}{diff} = Text::Diff::diff(
-                $root2->file_contents($path),
-                $root1->file_contents($path),
-                {   STYLE   => 'Text::Diff::HTML',
-                    CONTEXT => $context,
-                }
-            );
-
-            next;
-        }
-
-        # If the file was added it may have been copied from another file.
-        # Find out if it was, and if it was, do a diff between the two files.
-        # If there were any changes then show them
-        if(($self->{REV}->{paths}{$path}{action} eq 'A')
-            and defined $self->{REV}->{paths}{$path}{copyfrom}) {
-            my $src = $self->{REV}->{paths}{$path}{copyfrom};
-
-            my $root1 = $fs->revision_root($rev);
-            my $root2 = $fs->revision_root(
-                $self->{REV}->{paths}{$path}{copyfromrev});
-
-            # Skip the diff if either of the files have a non-text MIME type
-            my $mt1 = $root1->node_prop($path, 'svn:mime-type')
-                || 'text/plain';
-            my $mt2 = $root2->node_prop($src, 'svn:mime-type')
-                || 'text/plain';
-            next if($mt1 !~ m{^text/}) or ($mt2 !~ m{^text/});
-
-            # If the files have differing MD5s then do a diff
-            if($root1->file_md5_checksum($path) ne
-                $root2->file_md5_checksum($src)) {
-                $self->{REV}->{paths}{$path}{diff} = Text::Diff::diff(
-                    $root2->file_contents($src),
-                    $root1->file_contents($path),
-                    { STYLE => 'Text::Diff::HTML' }
-                );
-            }
-
-            next;
-        }
-    } continue {
-        if(defined $self->{REV}->{paths}{$path}{diff}) {
-	    $self->{REV}->{paths}{$path}{diff} =
-	      $self->_munge_html_diff($self->{REV}->{paths}{$path}{diff});
-        }
+	    $data->{paths}{$path}{isdir} = $node_kind == $SVN::Node::dir;
+	}
     }
 }
 
 1;
 
+=head1 COPYRIGHT
+
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

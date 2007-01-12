@@ -18,8 +18,8 @@ msgid "(author)"
 msgstr "Author"
 
 #: ../Template/trac/browse:18
-msgid "(browse listing)"
-msgstr "File and directory listing"
+msgid "(browse directory)"
+msgstr "Browse directory"
 
 #: ../Template/trac/log:6
 msgid "(changes)"
@@ -123,7 +123,7 @@ msgstr "Revision"
 
 #: ../Template/trac/log:6
 msgid "(show last)"
-msgstr "Show last"
+msgstr "Show last: "
 
 #: ../Template/trac/browse:23
 msgid "(size)"
@@ -160,6 +160,17 @@ msgstr "The path <tt>\"%1\"</tt> does not exist in the repository at "
 "by SVN::Web (and you know that the file definitely exists in the repository "
 "at this revision) then please report this as a bug so that it can be fixed."
 
+msgid "(cannot diff nodes of different types: %1 %2 %3)"
+msgstr "The path <tt>\"%1\"</tt> is of a different type at rev %2 and "
+"rev %3.  This probably happened because you committed something as a file, "
+"deleted it, and then recreated is a directory (or vice-versa).\n"
+"\n"
+"Trying to diff a file to a directory makes no sense."
+
+msgid "(path %1 is a directory at rev %2)"
+msgstr "The path <tt>\"%1\"</tt> is a directory.  SVN::Web does not "
+"currently support generating a diff between two directories."
+
 msgid "(path %1 is not a file in revision %2)"
 msgstr "The path <tt>\"%1\"</tt> is not a file in the repository at "
 "revision %2.\n"
@@ -192,8 +203,8 @@ msgstr "The repository called <tt>%1</tt> has been configured with a path "
 "of <tt>%2</tt>.  This path does not exist, and probably indicates a typo "
 "in the configuration file."
 
-msgid "(SVN::Repos::open failed: %1 %2)"
-msgstr "The repository at path <tt>%1</tt> could not be opened.\n"
+msgid "(SVN::Ra->new() failed: %1 %2)"
+msgstr "The repository at URL <tt>%1</tt> could not be opened.\n"
 "\n"
 "The error from Perl was:\n"
 "\n"
@@ -302,3 +313,25 @@ msgstr "<tt>%1</tt> could not be 'required' in to Perl.\n\n"
 "\n"
 "<tt>%2</tt>."
 
+msgid "(next page)"
+msgstr "Next page"
+
+msgid "(all)"
+msgstr "All"
+
+msgid "(diff too large: %1 %2)"
+msgstr "<p>The diff for this change is too large to process.  The configured "
+"limit is %2 bytes, and the diff for this change is %1 bytes.</p>"
+
+msgid "(path %1 is not a directory in revision %2)"
+msgstr "<p>The path <tt>%1</tt> is not a directory at revision %2.  This "
+"action can only operate on directories.</p>"
+
+msgid "(line number)"
+msgstr "Line #"
+
+msgid "(view blame)"
+msgstr "Blame/Annotate"
+
+msgid "(view file)"
+msgstr "View File"

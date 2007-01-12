@@ -7,7 +7,7 @@ use base 'SVN::Web::action';
 
 use File::Basename ();
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 =head1 NAME
 
@@ -56,7 +56,7 @@ The number of repositories that were configured.
 
 =item repos
 
-A list of repository names.
+A hash.  Keys are repository names, paths are repository URLs.
 
 =back
 
@@ -73,13 +73,13 @@ sub run {
 
     $self->{opts} = { %default_opts, %{ $self->{opts} } };
 
-    my @repos = SVN::Web::repos_list();
+    my %repos = repos_list($self->{config});
 
     # If there's only one repo listed then jump straight to it
-    if(@repos == 1 and $self->{opts}{redirect_to_browse_when_one_repo}) {
+    if(keys %repos == 1 and $self->{opts}{redirect_to_browse_when_one_repo}) {
         my $url = $self->{cgi}->self_url();
         $url =~ s{/$}{};
-        $url .= "/$repos[0]";
+        $url .= '/' . (keys %repos)[0];
         print $self->{cgi}->redirect(-uri => $url);
         return;
     }
@@ -89,10 +89,47 @@ sub run {
         data     => {
             action     => 'list',
             nonav      => 1,
-            repos      => \@repos,
-            reposcount => scalar @repos
+            repos      => \%repos,
+            reposcount => scalar keys %repos
         }
     };
 }
 
+sub repos_list {
+    my $config = shift;
+
+    my %repos;
+    if($config->{reposparent}) {
+        opendir my $dh, "$config->{reposparent}"
+            or SVN::Web::X->throw(
+            error => '(opendir reposparent %1 %2)',
+            vars  => [$config->{reposparent}, $!]
+            );
+
+        foreach my $dir (grep { -d File::Spec->catdir($config->{reposparent}, $_) && !/^\./ }
+            readdir $dh) {
+	    $repos{$dir} = 'file://' . File::Spec->catdir($config->{reposparent}, $dir);
+        }
+    } else {
+	%repos = %{ $config->{repos} };
+    }
+
+    delete @repos{ @{ $config->{block} } } if exists $config->{block};
+
+    return %repos;
+}
+
 1;
+
+=head1 COPYRIGHT
+
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

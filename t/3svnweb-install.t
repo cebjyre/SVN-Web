@@ -3,7 +3,7 @@
 use warnings;
 use strict;
 
-use Test::More tests => 7;
+use Test::More tests => 6;
 use Cwd;
 use File::Temp qw(tempdir);
 use YAML ();
@@ -23,7 +23,7 @@ foreach my $file (qw(config.yaml index.cgi)) {
     ok(-f "$tmpdir/$file", "$tmpdir/$file created");
 }
 
-foreach my $dir (qw(css po template)) {
+foreach my $dir (qw(css template)) {
     ok(-d "$tmpdir/$dir", "$tmpdir/$dir/ created");
 }
 

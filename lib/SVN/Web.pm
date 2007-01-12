@@ -1,12 +1,11 @@
-# -*- Mode: cperl; cperl-indent-level: 4 -*-
 package SVN::Web;
 
 use strict;
 use warnings;
 
 use URI::Escape;
-use SVN::Core;
-use SVN::Repos;
+use SVN::Client;
+use SVN::Ra;
 use YAML ();
 use Template;
 use File::Spec;
@@ -14,20 +13,22 @@ use POSIX ();
 
 use SVN::Web::X;
 use FindBin;
-use Locale::Maketext::Simple 
-  ( Path => (
-	     (-e File::Spec->catfile($FindBin::Bin, 'po', 'en.po'))
-	     ? File::Spec->catdir($FindBin::Bin, 'po')
-	     : File::Spec->catdir(substr(__FILE__, 0, -3), 'I18N')
-	    ),
-    Style  => 'gettext',
-    Decode => 0,
-  );
+
+use SVN::Web::I18N;
+
+# Add the localisations that ship with SVN::Web as the default, and set
+# the default language.  This will be overridden later, but ensures that
+# any error messages generated *before* it's overridden are generated
+# properly.
+SVN::Web::I18N::add_directory(
+    File::Spec->catdir(substr(__FILE__, 0, -3), 'I18N')
+);
+SVN::Web::I18N::loc_lang('en');
 
 use constant mod_perl_2 =>
     (exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2);
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 my $template;
 my $config;
@@ -35,10 +36,21 @@ my $config;
 my %REPOS;
 
 sub load_config {
+    return if defined $config;
     my $file = shift || 'config.yaml';
-    $config ||= YAML::LoadFile($file);
+    my $config = YAML::LoadFile($file);
+    set_config($config);
+}
 
-   # Deal with possibly conflicting 'templatedir' and 'templatedirs' settings.
+sub canonicalise_config {
+    # Catch missing / incorrect 'version' entries
+    die "Config file does not define a 'version' key."
+	unless exists $config->{version} and defined $config->{version};
+
+    die "Configuration file version ($config->{version}) does not match SVN::Web version ($VERSION)"
+	if $config->{version} != $VERSION;
+
+    # Deal with possibly conflicting 'templatedir' and 'templatedirs' settings.
 
     # If neither of them are set, use 'templatedirs'
     if(!exists $config->{templatedir} and !exists $config->{templatedirs}) {
@@ -82,18 +94,27 @@ sub load_config {
 	if exists $config->{cache}{opts}{directory_umask}
 	  and $config->{cache}{opts}{directory_umask} =~ /^0/;;
 
+    # Add any additional language directories
+    if(defined $config->{language_dirs}) {
+	foreach my $dir (@{ $config->{language_dirs} }) {
+	    SVN::Web::I18N::add_directory($dir);
+	}
+    }
+
     return;
 }
 
 sub set_config {
     $config = shift;
+
+    canonicalise_config();
 }
 
 sub get_config {
     return $config;
 }
 
-my $repospool = SVN::Pool->new;
+my $repospool = SVN::Pool->new();
 
 sub get_repos {
     my($repos) = @_;
@@ -101,32 +122,35 @@ sub get_repos {
     SVN::Web::X->throw(
         error => '(unconfigured repository)',
         vars  => []
-        )
-        unless $config->{repos} || $config->{reposparent};
+    ) unless exists $config->{repos}{$repos} || $config->{reposparent};
 
-    my $repo_path =
+    my $repo_uri =
         $config->{reposparent}
-        ? File::Spec->catdir($config->{reposparent}, $repos)
-        : $config->{repos}{$repos};
+	    ? File::Spec->catdir($config->{reposparent}, $repos)
+		: $config->{repos}{$repos};
 
     SVN::Web::X->throw(
         error => '(no such repo %1 %2)',
-        vars  => [$repos, $repo_path]
-        )
-        unless($config->{reposparent}
-        && -d File::Spec->catdir($config->{reposparent}, $repos))
-        || exists $config->{repos}{$repos} && -d $config->{repos}{$repos};
+        vars  => [$repos, $repo_uri]
+    ) unless defined $repos and exists $config->{repos}{$repos};
 
-    $repo_path =~ s{/$}{}g;	# Trim trailing '/', SVN::Repos::open fails
+    $repo_uri =~ s{/$}{}g;	# Trim trailing '/', SVN::Repos::open fails
 				# otherwise
 
-    eval { $REPOS{$repos} ||= SVN::Repos::open($repo_path, $repospool); };
+    # If there's a leading '/' then tack 'file://' on to the start
+    $repo_uri = "file://$repo_uri" if $repo_uri =~ m{^/};
+
+    eval {
+	$REPOS{$repos}{uri}    ||= $repo_uri;
+	$REPOS{$repos}{ra}     ||= SVN::Ra->new(url  => $repo_uri,
+						pool => $repospool);
+    };
 
     if($@) {
         my $e = $@;
         SVN::Web::X->throw(
-            error => '(SVN::Repos::open failed: %1 %2)',
-            vars  => [$repo_path, $e]
+            error => '(SVN::Client->new() failed: %1 %2)',
+            vars  => [$repo_uri, $e]
         );
     }
 
@@ -137,54 +161,33 @@ sub get_repos {
     }
 }
 
-sub repos_list {
-    load_config('config.yaml');
-
-    my @repos;
-    if($config->{reposparent}) {
-        opendir my $dh, "$config->{reposparent}"
-            or SVN::Web::X->throw(
-            error => '(opendir reposparent %1 %2)',
-            vars  => [$config->{reposparent}, $!]
-            );
-
-        foreach my $dir (grep { -d File::Spec->catdir($config->{reposparent}, $_) && !/^\./ }
-            readdir $dh) {
-            push @repos, $dir;
-        }
-    } else {
-        @repos = keys %{ $config->{repos} };
-    }
-
-    my %blocked = map { $_ => 1 } @{ $config->{block} };
-
-    return sort grep { !$blocked{$_} } @repos;
-}
-
-sub get_handler {
+sub get_action {
     my $cfg = shift;
-    my $pkg;
+    my $action_pkg;
 
     if(exists $config->{actions}{ $cfg->{action} }) {
         if(ref($config->{actions}{ $cfg->{action} }) eq 'HASH') {
             if(exists $config->{actions}{ $cfg->{action} }{class}) {
-                $pkg = $config->{actions}{ $cfg->{action} }{class};
+                $action_pkg = $config->{actions}{ $cfg->{action} }{class};
             }
         }
     }
 
-    unless($pkg) {
-        $pkg = $cfg->{action};
-        $pkg =~ s{^(\w)}{\U$1};
-        $pkg = __PACKAGE__ . "::$pkg";
+    unless($action_pkg) {
+        $action_pkg = $cfg->{action};
+        $action_pkg =~ s{^(\w)}{\U$1};
+        $action_pkg = __PACKAGE__ . "::$action_pkg";
     }
-    eval "require $pkg && $pkg->can('run')"
+
+    eval "require $action_pkg && $action_pkg->can('run')"
         or SVN::Web::X->throw(
         error => '(missing package %1 for action %2: %3)',
-        vars  => [$pkg, $cfg->{action}, $@]
-        );
+        vars  => [$action_pkg, $cfg->{action}, $@]
+    );
+
     my $repos = $cfg->{repos} ? $REPOS{ $cfg->{repos} } : undef;
-    return $pkg->new(
+
+    return $action_pkg->new(
         %$cfg,
         reposname => $cfg->{repos},
         repos     => $repos,
@@ -195,11 +198,8 @@ sub get_handler {
 sub run {
     my $cfg = shift;
 
-    my $pool = SVN::Pool->new_default;
-
-    my $obj;
+    my $action;
     my $html;
-
     my $cache;
 
     if(defined $config->{cache}{class}) {
@@ -222,22 +222,20 @@ sub run {
         shift @{ $cfg->{navpaths} };
 
         # should use attribute or things alike
-        $obj = get_handler(
-            {   %$cfg,
-                opts => exists $config->{actions}{ $cfg->{action} }{opts}
+        $action = get_action({
+	    %$cfg,
+	    opts => exists $config->{actions}{ $cfg->{action} }{opts}
                 ? $config->{actions}{ $cfg->{action} }{opts}
-                : {},
-            }
-        );
+		    : {},
+	});
     } else {
         $cfg->{action} = 'list';
-        $obj = get_handler(
-            {   %$cfg,
-                opts => exists $config->{actions}{ $cfg->{action} }{opts}
+        $action = get_action({
+	    %$cfg,
+	    opts => exists $config->{actions}{ $cfg->{action} }{opts}
                 ? $config->{actions}{ $cfg->{action} }{opts}
-                : {},
-            }
-        );
+		    : {},
+	});
     }
 
     # Determine the language to use
@@ -247,29 +245,35 @@ sub run {
     $cfg->{lang} = $lang;	# Note the preference, stored in a cookie
 				# later
 
-    loc_lang($lang);		# Set the localisation language
+    SVN::Web::I18N::loc_lang($lang); # Set the localisation language
 
     # Generate output, from the cache if necessary.
 
-    # Does the object support caching?  If so, get the cache key
+    # Does the action support caching?  If so, get the cache key
     my $cache_key;
-    if(defined $cache and $obj->can('cache_key')) {
-	$cache_key = join(':', $cfg->{action}, $lang) . ':' . $obj->cache_key();
+    if(defined $cache and $action->can('cache_key')) {
+	$cache_key = join(':', $cfg->{action}, $lang) . ':' . $action->cache_key();
     }
 
     # If there's a key, retrieve the data from the cache
     $html = $cache->get($cache_key) if defined $cache_key;
 
-    # No data?  Get the object to generate it, then cache it
+    # No data?  Get the action to generate it, then cache it
     if(! defined $html) {
-	$html = $obj->run();
+	# Create a default pool for the action's allocation
+	my $pool = SVN::Pool->new_default();
+
+	$REPOS{$cfg->{repos}}{client}   = SVN::Client->new(config => {});
+
+	$html = $action->run();
+
+	$pool->clear();
 
 	if(defined $cache_key) {
 	    $cache->set($cache_key, $html, $cfg->{cache}{expires_in});
 	}
     }
 
-    $pool->clear;
     return $html;
 }
 
@@ -347,9 +351,10 @@ sub cgi_output {
         );
 
         if($html->{template}) {
-            $template->process($html->{template},
-                { %$cfg, %{ $html->{data} } })
-                or die "Template::process() error: " . $template->error;
+            $template->process($html->{template}, {
+		c => $cfg,
+		%{ $html->{data} }
+	    }) or die "Template::process() error: " . $template->error;
         } else {
             print $html->{body};
         }
@@ -372,13 +377,13 @@ sub mod_perl_output {
 	push @cookies, Apache2::Cookie->new($cfg->{request},
 					    -name  => 'svnweb-lang',
 					    -value => $cfg->{lang},
-					   );
+					);
 	$_->bake($cfg->{request}) foreach @cookies;
     } else {
 	push @cookies, Apache::Cookie->new($cfg->{request},
 					   -name  => 'svnweb-lang',
 					   -value => $cfg->{lang},
-					  );
+				       );
 	$_->bake() foreach @cookies;
     }
 
@@ -397,7 +402,7 @@ sub mod_perl_output {
         if($html->{template}) {
             $template ||= get_template();
             $template->process($html->{template},
-                { %$cfg, %{ $html->{data} } },
+                { c => $cfg, %{ $html->{data} } },
                 $cfg->{request})
                 or die $template->error;
         } else {
@@ -416,28 +421,26 @@ sub mod_perl_output {
     }
 }
 
-our $pool;    # global pool for holding opened repos
-
 sub get_template {
-    Template->new(
-        {   INCLUDE_PATH => $config->{templatedirs},
-            COMPILE_DIR  => $config->{tt_compile_dir},
-            FILTERS      => {
-                l       => ([\&loc_filter, 1]),
-                log_msg => \&log_msg_filter,
-            }
-        }
-    );
+    Template->new({
+	INCLUDE_PATH => $config->{templatedirs},
+	COMPILE_DIR  => $config->{tt_compile_dir},
+	PRE_CHOMP    => 2,
+	POST_CHOMP   => 2,
+	FILTERS      => {
+	    l       => ([\&loc_filter, 1]),
+	}
+    });
 }
 
 sub run_cgi {
     my %opts = @_;
     die $@ if $@;
-    $pool ||= SVN::Pool->new_default;
+
     load_config('config.yaml');
-    $config->{$_} = $opts{$_} foreach keys %opts;
+
+    $config->{$_}             = $opts{$_} foreach keys %opts;
     $template               ||= get_template();
-    $config->{diff_context} ||= 3;
 
     # Pull in the configured CGI class.  Propogate any errors back, and
     # call the correct import() routine.
@@ -485,10 +488,11 @@ sub run_cgi {
     while(my $cgi = $cgi_class->new) {
         my($html, $cfg);
 
-	$cfg = { style     => $config->{style},
-		 cgi       => $cgi,
-		 languages => $config->{languages},
-	       };
+	$cfg = {
+	    style     => $config->{style},
+	    cgi       => $cgi,
+	    languages => $config->{languages},
+	};
 
         eval {
 	    my($action, $base, $repo, $script, $path) = crack_url($cgi);
@@ -496,8 +500,7 @@ sub run_cgi {
             SVN::Web::X->throw(
                 error => '(action %1 not supported)',
                 vars  => [$action]
-                )
-                unless exists $config->{actions}{ lc($action) };
+	    ) unless exists $config->{actions}{ lc($action) };
 
             $cfg->{repos}    = $repo;
 	    $cfg->{action}   = $action;
@@ -505,6 +508,7 @@ sub run_cgi {
 	    $cfg->{script}   = $script;
 	    $cfg->{base_uri} = $base;
 	    $cfg->{self_uri} = $cgi->self_url();
+	    $cfg->{config}   = $config;
 
             $html = run($cfg);
         };
@@ -512,7 +516,7 @@ sub run_cgi {
         my $e;
         if($e = SVN::Web::X->caught()) {
             $html->{template} = 'x';
-            $html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
+            $html->{data}{error_msg} = SVN::Web::I18N::loc($e->error(), @{ $e->vars() });
         } else {
             if($@) {
                 $html->{template} = 'x';
@@ -528,46 +532,7 @@ sub run_cgi {
 sub loc_filter {
     my $context = shift;
     my @args    = @_;
-    return sub { loc($_[0], @args) };
-}
-
-# A meta-filter for log messages.  Processes a list of hashes.  Each hash
-# has (at least) 'name' and 'filter' keys.  The 'name' is the Perl module
-# that implements the plugin.  The 'filter' key is the name of the plugin's
-# method that does the filtering.
-#
-# The optional 'opts' key is a list of option key/value pairs to pass
-# to the filter.
-sub log_msg_filter {
-    my $text = shift;
-
-    return $text if !defined $config->{log_msg_filters};
-
-    my $plugin;
-    my @filters = @{ $config->{log_msg_filters} };
-    my $context = $template->context();
-
-    foreach my $filter_spec (@filters) {
-        if($filter_spec->{name} ne 'standard') {
-            eval {    # Make sure plugin is available, skip if not
-                $plugin = $context->plugin($filter_spec->{name});
-            };
-            if($@) {
-                warn "Plugin $filter_spec->{name} is not available\n";
-                next;
-            }
-        }
-
-        if(defined $plugin and $plugin->can('filter')) {
-            $text = $plugin->filter($text, [], $filter_spec->{opts});
-        } else {
-            my $filter = $context->filter($filter_spec->{filter},
-                $filter_spec->{opts})
-                || next;
-            $text = $filter->($text);
-        }
-    }
-    return $text;
+    return sub { SVN::Web::I18N::loc($_[0], @args) };
 }
 
 # Crack a URL and determine the components we need.  Takes either a CGI
@@ -585,7 +550,7 @@ sub crack_url {
 	$path_info = $obj->path_info();
 	$uri       = $obj->uri();
     } else {
-	# For compatability with Apache::Request->filename():
+	# For compatibility with Apache::Request->filename():
 	# 1. $location is the current working directory
 	# 2. $filename is $location + the first component of path_info()
 	$location  = POSIX::getcwd();
@@ -631,6 +596,7 @@ sub crack_url {
 	$repo = $filename;
 	my $quoted_location = quotemeta($location);
 	$repo =~ s{^ $quoted_location [/\\]? }{}x;
+	$repo = uri_unescape($repo);
     }
 
 #    warn "REPO: $repo\n";
@@ -663,6 +629,7 @@ sub crack_url {
 	} else {
 	    $path = $path_info;
 	    $path =~ s{^/$action}{};
+	    $path =~ s{/+$}{} unless $path eq '/';
 	}
     }
 
@@ -695,12 +662,12 @@ sub crack_url {
 			  $obj->server()->server_hostname(),
 			  $port,
 			  $uri);
-	$script =~ s/$path$//;
+	$script =~ s{$path/?$}{};
 	$script =~ s{/$action$}{};
 	$script =~ s{/$repo$}{};
     } elsif(ref($obj) eq 'Apache2::RequestRec') {
 	$script = $obj->construct_url();
-	$script =~ s{$path$}{};
+	$script =~ s{$path/?$}{};
 	$script =~ s{/$action$}{};
 	$script =~ s{/$repo$}{};
     } else {
@@ -781,29 +748,29 @@ sub handler {
     my($action, $base, $repo, $script, $path) = crack_url($r);
 
     chdir($r->location());
-    $pool ||= SVN::Pool->new_default;
     load_config('config.yaml');
 
     my($html, $cfg);
 
-    $cfg = { style     => $config->{style},
-	     cgi       => $apr,
-	     languages => $config->{languages},
-	     request   => $r,
-	   };
+    $cfg = {
+	style     => $config->{style},
+	cgi       => $apr,
+	languages => $config->{languages},
+	request   => $r,
+    };
 
     eval {
 	SVN::Web::X->throw(
 	    error => '(action %1 not supported)',
             vars  => [$action]
-            )
-	    unless exists $config->{actions}{ lc($action) };
+	) unless exists $config->{actions}{ lc($action) };
 
 	$cfg->{repos}    = $repo;
 	$cfg->{action}   = $action;
 	$cfg->{path}     = $path;
 	$cfg->{script}   = $script;
 	$cfg->{base_uri} = $base;
+	$cfg->{config}   = $config;
 
 	$cfg->{self_uri} = $r->uri();
 	my $args         = $r->args();
@@ -817,7 +784,8 @@ sub handler {
     my $e;
     if($e = SVN::Web::X->caught()) {
         $html->{template} = 'x';
-        $html->{data}{error_msg} = loc($e->error(), @{ $e->vars() });
+        $html->{data}{error_msg} = SVN::Web::I18N::loc($e->error(),
+						       @{ $e->vars() });
     } else {
 	if($@) {
 	    $html->{template} = 'x';
@@ -838,6 +806,11 @@ __END__
 SVN::Web - Subversion repository web frontend
 
 =head1 SYNOPSIS
+
+If you are upgrading an existing SVN::Web installation then please see
+L<UPDATING.pod>.  Installing new SVN::Web versions without making sure
+the configuration file, templates, and localisations are properly updated
+and merged will likely break your current installation.
 
 To get started with SVN::Web.
 
@@ -863,10 +836,10 @@ Edit the file F<config.yaml> that's been created, and add the following
 two lines:
 
   repos:
-    test: '/path/to/repo'
+    test: 'file:///path/to/repo'
 
-C</path/to/repo> should be the path to an existing Subversion repository
-on the local disk.
+C<file:///path/to/repo> should be the URL for an existing Subversion
+repository.
 
 =item 4.
 
@@ -892,14 +865,17 @@ for the SVN::Web source code, browsed using SVN::Web.
 
 =head1 DESCRIPTION
 
-SVN::Web provides a web interface to subversion repositories. SVN::Web's
+SVN::Web provides a web interface to subversion repositories. It's
 features include:
 
 =over
 
 =item *
 
-Viewing multiple Subversion repositories.
+Viewing multiple Subversion repositories.  SVN::Web is a full
+Subversion client, so you can access repositories on the local disk
+(with the C<file:///> scheme) or that are remotely accessible using
+the C<http://> and C<svn://> schemes.
 
 =item *
 
@@ -919,6 +895,10 @@ show what's changed.
 
 Viewing the revision log of files and directories, see what was changed
 when, by who.
+
+=item *
+
+Viewing the blame/annotation details of any file.
 
 =item *
 
@@ -973,18 +953,43 @@ Various aspects of SVN::Web's behaviour can be controlled through the
 configuration file F<config.yaml>.  See the C<YAML> documentation for
 information about writing YAML format files.
 
+=head2 Version number
+
+SVN::Web's configuration file must contain a version number.  If this
+number is missing, or does not match the version number of the version
+of SVN::Web that is being used then a fatal error will occur.
+
+  version: 0.50
+
 =head2 Repositories
 
+=head3 Local and remote repositories
+
 SVN::Web can show information from one or more Subversion repositories.
+These repositories do not have to be located on the same server.
 
-To specify them use C<repos> or C<reposparent>.
+Repositories are specified as a hash items under the C<repos> key.  Each
+key is the repository name (defined by you), the value is the repository's
+URL.
 
-If you have a single Subversion repository, or multiple repositories that
-are not under a single parent directory then use C<repos>.
+The three types of repository are specified like so.
 
   repos:
-    first_repo: '/path/to/the/first/repo'
-    second_repo: '/path/to/the/second/repo'
+    my_local_repo: 'file:///path/to/local/repo'
+    my_http_repo: 'http://hostname/path'
+    my_svn_repo: 'svn://hostname/path'
+
+You may list as many repositories as you need.
+
+For backwards compatibility, if a repository URL is specified without a
+scheme, and starts with a C</> then the C<file:///> scheme is assumed.  So
+
+  repos:
+    my_local_repo: /path/to/local/repo
+
+is also valid.
+
+=head3 Local repositories under a single root
 
 If you have multiple repositories that are all under a single parent
 directory then use C<reposparent>.
@@ -998,15 +1003,7 @@ from being browseable by specifying the C<block> setting.
     - 'first_subdir_to_block'
     - 'second_subdir_to_block'
 
-=head2 Diffs
-
-When showing differences between files, SVN::Web can show a customisable
-amount of context around the changes.
-
-The default number of lines to show is 3.  To change this globally set
-C<diff_context>.
-
-  diff_context: 4
+C<repos> and C<reposparent> are mutually exclusive.
 
 =head2 Templates
 
@@ -1034,9 +1031,19 @@ specify a full path to the templates.
 
 You can specify more than one directory in this list, and templates
 will be searched for in each directory in turn.  This makes it possible for
-actions that are not part of the core SVN::Web to ship their own templates.
-The documentation for these actions should explain how to adjust
-C<templatedirs> so their templates are found.
+actions that are not part of the core SVN::Web to ship their own templates,
+and for you to override specific templates of your choice.
+
+For example, if an action is using a template called C<view>, and
+C<templatedirs> is configured like so:
+
+  templatedirs:
+    - '/my/local/templates'
+    - '/templates/that/ship/with/svn-web'
+
+then F</my/local/templates/view> will first by checked.  If it exists
+the search terminates and it's used.  If it does not exist then the search
+continues in F</templates/that/ship/with/svn-web>.
 
 For more information about writing your own templates see
 L</"ACTIONS, SUBCLASSES, AND URLS">.
@@ -1048,16 +1055,58 @@ translations.  The default web interface allows the user to choose
 from the available localisations at will, and the user's choice is
 saved in a cookie.
 
-Two options control SVN::Web's localisations.
+=head3 Localisation directories
 
-The first, C<languages>, specifies the localisations that are considered
-I<available>.  This is a hash.  The keys are the basenames of available
-localisation files, the values are the language name as it should appear
-in the interface.  C<svnweb-install> will have set this to a default
-value.
+SVN::Web's localisation information is stored in files with names that
+take the form F<< C<language>.po >>.  SVN::Web ships with a number
+of localisations that are automatically installed with SVN::Web.
+
+You can configure SVN::Web to search in additional directories for
+localisation files.  There are typically three reasons for this.
+
+=over
+
+=item 1
+
+You wish to add support for a new language, and have placed your
+localisation files in a different directory.
+
+=item 2
+
+You wish to change the localisation for a language that SVN::Web already
+supports, and don't wish to overwrite the localisation file that SVN::Web
+ships with.
+
+=item 3
+
+You have installed a third party SVN::Web::action, and this action
+includes its own localisation files stored in a different directory.
+
+=back
+
+Use the C<language_dirs> configuration to specify all the I<additional>
+directories that SVN::Web should search.  For example:
+
+  language_dirs:
+    - /path/to/my/local/translation
+    - /path/to/third/party/action/localisation
+
+If files in more than one directory contain the same localisation key
+for the same language then the file in the directory that is listed
+I<last> in this directive will be used.
+
+=head3 Available languages
+
+C<languages> specifies the localisations that are considered
+I<available>.  This is a hash.  The keys are the basenames of
+available localisation files, the values are the language name as it
+should appear in the interface.  C<svnweb-install> will have set this
+to a default value.
 
 To find the available localisation files look in the F<po/> directory
-that was created in the directory in which you ran C<svnweb-install>.
+that was created in the directory in which you ran C<svnweb-install>,
+and in the directories listed in the C<language_dirs> directive (if any).
+
 For example, the default (as of SVN::Web 0.48) is:
 
   languages:
@@ -1066,9 +1115,11 @@ For example, the default (as of SVN::Web 0.48) is:
     zh_cn: Chinese (Simplified)
     zh_tw: Chinese (Traditional)
 
-The second, C<default_language>, specifies the language to use if the
-user has not selected one.  The value for this option should be one of
-the keys defined in C<languages>.  For example;
+=head3 Default language
+
+C<default_language>, specifies the language to use if the user has not
+selected one.  The value for this option should be one of the keys
+defined in C<languages>.  For example;
 
   default_language: fr
 
@@ -1141,84 +1192,18 @@ The Template::Toolkit makes it possible to filter these messages through
 one or more plugins and/or filters that can recognise these and insert
 additional markup to make them active.
 
-There are two drawbacks with this approach:
+In SVN::Web this is accomplished using a Template::Toolkit MACRO called
+C<log_msg>.  The F<trac> templates define this in a template called
+F<_log_msg>, which is included in the relevant templates by this line:
 
-=over 4
+  [% PROCESS _log_msg %]
 
-=item 1.
-
-For consistency you need to make sure that all log messages are passed
-through the same filters in the same order in all the templates that
-display log messages.
-
-=item 2.
-
-If you move the templates from a machine that has a particular filter
-installed to a machine that doesn't have that filter installed you need
-to remove it from the template, otherwise you will receive a run-time
-error.
-
-=back
-
-SVN::Web provides a special Template::Toolkit filter called C<log_msg>.
-Use it like so (assume C<msg> contains the SVN log message).
-
-  [% msg | log_msg %]
-
-The filters to run for C<log_msg>, their order, and any options, are
-specified in the C<log_msg_filters> configuration directive.  This contains
-a list of filters and key,value pairs.
-
-=over 4
-
-=item name
-
-Specifies the name of the class of the filtering object or plugin.  If
-the object is in the Template::Plugin::* namespace then you can omit
-the leading C<Template::Plugin::>.
-
-If the name is C<standard> then filters from the standard
-L<Template::Filters> collection can be used.
-
-=item filter
-
-The name of the filter to run.  This is taken from whatever the plugin's
-documentation says would go in the C<[% FILTER ... %]> directive.
-
-For example, the L<Template::Plugin::Clickable> documentation gives this
-example;
-
-  [% USE Clickable %]
-  [% FILTER clickable %]
-  ...
-
-So the correct value for C<name> is C<Clickable>, and the correct value for
-C<filter> is C<clickable>.
-
-=item opts
-
-Any options can be passed to the filter using C<opts>.  This specifies a
-list of hash key,value pairs.
-
-  ...
-  opts:
-    first_opt: first_value
-    second_opt: second_value
-  ...
-
-=back
-
-Filters are run in the order they are listed.  Any filters that do not exist
-on the system are ignored.
-
-The configuration file includes a suggested list of default filters.
-
-You can write your own plugins to recognise certain information in your
-local log messages and automatically turn them in to links.  For example,
-if you have a web-based issue tracking system, you might write a plugin
-that recognises text of the form C<t#1234> and turns it in to a link to
-ticket #1234 in your ticketing system.  L<Template::Plugin::Subst> might
-be helpful if you do this.
+You may redefine this macro yourself to filter log messages through
+additional plugins depending on your requirements.  As a MACRO this
+also has access to the template's variables, allowing you to easily
+specify different filters depending on the values of different
+variables (perhaps per-repository, or per-author filtering).  See the
+F<_log_msg> template included with this distribution for more details.
 
 =head2 Time and date formatting
 
@@ -1243,7 +1228,8 @@ UTC.  This is the default behaviour.
 =item 2.
 
 If set to the string C<local> then SVN::Web will adjust all timestamps to
-the server's local timezone.
+the web server's local timezone (which may not be the same timezone as
+the server that hosts the repository).
 
 =item 3.
 
@@ -1290,7 +1276,7 @@ directive.
 
 If you delete items from this list then the corresponding action becomes
 unavailable.  For example, if you would like to prevent people from retrieving
-an RSS feed of changes, just delete the C<- RSS> entry from the list.
+an RSS feed of changes, just delete the C<- rss> entry from the list.
 
 To provide your own behaviour for standard actions just specify a
 different value for the C<class> key.  For example, to specify your
@@ -1306,13 +1292,13 @@ If you wish to implement your own action, give the action a name, add
 it to the C<actions> list, and then specify the class that carries out
 the action.
 
-For example, SVN::Web currently provides no equivalent to the
-Subversion C<annotate> command.  If you implement this, you would write:
+For example, SVN::Web currently provides no action that generates ATOM
+feeds.  If you implement this, you would write:
 
   actions:
     ...
-    annotate:
-      class: My::Class::That::Implements::Annotate
+    atom:
+      class: My::Class::That::Implements::Atom
     ...
 
 Please feel free to submit any classes that implement additional
@@ -1341,6 +1327,107 @@ C<class> directive then SVN::Web takes the action name, converts the
 first character to uppercase, and then looks for an
 C<< SVN::Web::<Action> >> package.
 
+=head2 Action menu configuration
+
+In the user interface the C<action menu> is a list of actions that are
+valid in the current context.  This menu is built up programmatically
+from additional metadata about each action included in the config file.
+
+The metadata is written as a hash, with each key corresponding to a
+particular piece of metadata.  The hash is rooted at the C<action_menu>
+key.
+
+A worked example may prove instructive.  Here is the default entry for
+L<SVN::Web::RSS>.  This shows all the valid keys under C<action_menu>.
+
+  rss:
+    class: SVN::Web::RSS
+    action_menu:
+      show:
+        - file
+        - directory
+      link_text: (rss)
+      head_only: 1
+      icon: /css/trac/feed-icon-16x16.png
+
+The keys, and their meanings, are:
+
+=over
+
+=item show
+
+The contexts in which this action should appear in the action menu.  Each
+SVN::Web action produces a result in a particular context.  The valid
+contexts are:
+
+=over
+
+=item file
+
+The action is acting on a single file.  E.g., L<SVN::Web::View> or
+L<SVN::Web::Blame>.
+
+=item directory
+
+The action is acting on a single directory.  E.g., L<SVN::Web::Browse>.
+
+=item revision
+
+The action is acting on a single revision.  E.g., L<SVN::Web::Revision>.
+
+=back
+
+Valid values are any of the three items above, plus the special value
+C<global>, indicating that the action should always appear in the
+action menu.
+
+In this example, the C<rss> action is available when browsing directories
+and viewing files.  It makes no sense to make the RSS action available
+when browsing an individual revision, so that is not listed as a valid
+context.
+
+=item link_text
+
+The text that should appear in the action menu for this item.  This
+text is passed through the localisation system.
+
+=item head_only
+
+A boolean that indicates whether the action is always available in the
+listed contexts, or whether it should only appear when viewing the
+HEAD revision in a particular context.
+
+In this example it makes no sense to clamp the RSS feed to a particular
+revision, so it is flagged as only being available when looking at the
+HEAD of a file or directory.
+
+=item icon
+
+The (relative) path to the icon to use for this menu item (if any).
+
+=back
+
+For comparison, this is the recommended setting for L<SVN::Web::Checkout>.
+
+  checkout:
+    class: SVN::Web::Checkout
+    action_menu:
+      show:
+        - file
+      link_text: (checkout)
+
+This action is only valid when viewing files -- checking out a directory
+does not make sense.  A file can be checked out at any revision, so
+C<head_only> can be omitted (C<head_only: 0> would have the same effect).
+And there is no icon for this action.
+
+For details of how this information is used see the
+F<template/trac/_action_menu> template.
+
+The C<action_menu> metadata is optional.  Some actions might not merit
+a menu option (e.g., C<diff> or C<revision>), so those actions should
+not have C<action_menu> metadata.
+
 =head2 CGI class
 
 SVN::Web can use a custom CGI class.  By default SVN::Web will use
@@ -1356,6 +1443,10 @@ you may specify it here too.
 SVN::Web URLs are broken down in to four components.
 
   .../index.cgi/<repo>/<action>/<path>?<arguments>
+
+or
+
+  .../apache-handler/<repo>/<action>/<path>?<arguments>
 
 =over 4
 
@@ -1386,6 +1477,12 @@ template that displays the action's results.
 The standard actions, and the Perl modules that implement them, are:
 
 =over 4
+
+=item I<blame>, I<SVN::Web::Blame>
+
+Shows the blame (also called annotation) information for a file.  On a
+per line basis it shows the revision in which that line was last changed
+and the user that committed the change.
 
 =item I<browse>, I<SVN::Web::Browse>
 
@@ -1472,7 +1569,7 @@ With that configuration the full path to browse the repository would be:
 
 You can use mod_perl or mod_perl2 with SVN::Web.  You must install
 L<Apache::Request|Apache::Request> (for mod_perl) or
-L<Apache::Request2|Apache::Request2> (for mod_perl2) to enable this support.
+L<Apache2::Request|Apache2::Request> (for mod_perl2) to enable this support.
 
 The following Apache configuration is suitable.
 
@@ -1490,11 +1587,11 @@ The following Apache configuration is suitable.
 If F</path/to/svnweb> is not under your normal Apache web hosting root then
 you will need to alias a URL to that path too.
 
-  Alias /svnweb /path/to/svnweb
+  Alias /svnweb /path/to/svnweb/
 
 With that configuration the full path to browse the repository would be:
 
-  http://server/svnweb/
+  http://server/svnweb
 
 =head2 Apache with FastCGI
 
@@ -1560,7 +1657,7 @@ Nik Clayton C<< <nik@FreeBSD.org> >>
 
 Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
 
-Copyright 2005-2006 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

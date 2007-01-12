@@ -1,14 +1,7 @@
 [% PROCESS header %]
 
-<h1>[%|l(script, repos, rev1, rev2)%](diff range)[%END%]</h1>
+[% PROCESS _action_menu %]
 
-<p><a href="[% script %]/[% repos %]/diff[% path | uri | html %]?rev1=[% rev2 %];rev2=[% rev1 %]">[%|l%](reverse diff)[%END%]</a> | <a href="[% script %]/[% repos %]/diff[% path | uri | html %]?rev1=[% rev1 %];rev2=[% rev2 %];mime=text/plain">[%|l%](view plain text)[%END%]</a></p>
+[% INCLUDE '_diff' %]
 
-<div class="diff">
-  <ul>
-    <li><h2>[% path %]</h2>
-
-      [% body %]</li>
-  </ul>
-</div>
 [% PROCESS footer %]

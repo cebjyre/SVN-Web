@@ -1,6 +1,6 @@
 package SVN::Web::action;
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 use POSIX qw();
 use Time::Local qw(timegm_nocheck);
@@ -28,13 +28,23 @@ via formatting by a Template::Toolkit template.
 
 Action names are listed in the SVN::Web configuration file,
 F<config.yaml>, in the C<actions:> clause.  Each entry specifies the
-class that implements the action, and any options that are set globally
-for that action.
+class that implements the action, options that are set globally
+for that action, and metadata that describes when and how the action
+should appear in the action menu.
 
   actions:
     ...
     new_action:
       class: Class::That::Implements::Action
+      action_menu:            # Optional
+        show:
+          - file              # Zero or more of this, ...
+          - directory         # ... this ...
+          - revision          # ... or this.
+          - global            # Or possibly just this one
+        link_text: (text)     # Mandatory
+        head_only: 1          # Optional
+        icon: /a/path         # Optional
       opts:
         option1: value1
         option2: value2
@@ -218,6 +228,9 @@ Given a repository path, and a revision number, returns the most recent
 interesting revision for the path that is the same as, or older (i.e.,
 smaller) than the revision number.
 
+If called in an array context it returns all the arguments normally passed
+to a log message receiver.
+
 =cut
 
 sub recent_interesting_rev {
@@ -225,14 +238,14 @@ sub recent_interesting_rev {
     my $path = shift;
     my $rev  = shift;
 
-    my $fs   = $self->{repos}->fs;
-    my $root = $fs->revision_root($rev);
+    my $ra  = $self->{repos}{ra};
 
-    my $hist = $root->node_history($path);
-    $hist    = $hist->prev(0);
-    $rev     = ($hist->location())[1];
+    my @log_result;
+    $ra->get_log([$path], $rev, 1, 1, 0, 1,
+                 sub { @log_result = @_; });
 
-    return $rev;
+    return @log_result if wantarray();
+    return $log_result[1];	# Revision number
 }
 
 =head2 get_revs()
@@ -268,10 +281,9 @@ at the HEAD of the repository ($at_head).
 sub get_revs {
     my $self = shift;
     my $path = $self->{path};
-    my $fs   = $self->{repos}->fs();
 
     my $exp_rev = $self->{cgi}->param('rev');
-    my $yng_rev = $fs->youngest_rev();
+    my $yng_rev = $self->{repos}{ra}->get_latest_revnum();
     my $act_rev = defined $exp_rev ? $self->recent_interesting_rev($path, $exp_rev) :
                                      $self->recent_interesting_rev($path, $yng_rev);
 
@@ -349,26 +361,15 @@ then throw an exception.
 
 Exceptions, along with examples, are described in L<SVN::Web::X>.
 
+=head1 COPYRIGHT
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
 =cut
-
-# Diff.pm and Revision.pm need to munge the output in Text::Diff::HTML in
-# the same way.  The code lives here for the time being, although it's not
-# optimal place to put it.
-
-sub _munge_html_diff {
-    my $self = shift;
-    my $html = shift;
-
-    $html =~ s/^  /<span class="diff-leader">  <\/span>/mg;
-    $html =~ s/<span class="ctx">  /<span class="ctx"><span class="diff-leader">  <\/span>/mg;
-    $html =~ s/<ins>\+ /<span class="ins"><span class="diff-leader">+ <\/span>/mg;
-    $html =~ s/<del>- /<span class="del"><span class="diff-leader">- <\/span>/mg;
-    $html =~ s/<\/ins>/<\/span>/mg;
-    $html =~ s/<\/del>/<\/span>/mg;
-    $html =~ s/^- /<span class="diff-leader">- <\/span>/mg;
-    $html =~ s/^\+ /<span class="diff-leader">+ <\/span>/mg;
-
-    return $html;
-}
 
 1;

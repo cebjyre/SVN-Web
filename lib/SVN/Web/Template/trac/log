@@ -1,15 +1,25 @@
 [% PROCESS header %]
 
-[% IF ! isdir OR at_head %]
-<p>[% IF at_head %]<a href="[% script %]/[% repos %]/rss[% path | uri | html %]"><img class="icon" src="[% base_uri %]/css/trac/feed-icon-16x16.png" width="16" height="16" alt="" /> [%|l%](rss)[%END%]</a>[% IF ! isdir %] | [%END%][% END %][% IF ! isdir %]<a href="[% script %]/[% repos %]/checkout[% path | uri | html %][% revstr %]">[%|l%](checkout)[%END%]</a>[% END %]</p>
-[% END %]
+[% PROCESS _action_menu %]
+[% PROCESS _log_msg %]
 
-<div class="title"><form action="[% self_uri %]" method="get">
-  [%|l%](show last)[%END%] <input name="limit" size=4 value="[% limit %]" /> [%|l%](changes)[%END%]</form>
+<div class="title">
+  <p align="right">[%|l%](show last)[%END%] 
+  [% FOREACH items_per_page = [20, 50, 100, '(all)'] %]
+    [% IF items_per_page == limit %]
+      [%|l%][% items_per_page %][%END%]
+    [% ELSE %]
+      <a href="[% c.script %]/[% c.repos %]/log[% c.path | uri | html %]?limit=[% items_per_page %][% IF rev %];rev=[% rev %][%END%]">[%|l%][% items_per_page %][%END%]</a>
+    [% END %]
+    [% IF items_per_page != '(all)' %], [% END %]
+  [% END %]<br />
+  [% IF ! at_oldest %]
+  <a href="[% c.script %]/[% c.repos %]/log[% c.path | uri | html %]?rev=[% revs.last.rev - 1%]">[%|l%](next page)[%END%]</a>
+  [% END %]</p>  
 </div>
 
 [% IF ! isdir %]
-<form action="[% script %]/[% repos %]/diff[% path | uri | html %]" method="get">
+<form action="[% c.script %]/[% c.repos %]/diff[% c.path | uri | html %]" method="get">
 <input type="submit" value="[%|l%](diff selected revisions)[%END%]"/>
 [% END %]
 <table id="chglist" class="listing" summary="[%|l%](revision log)[%END%]">
@@ -34,26 +44,26 @@
 [% END %]
     <td class="date">[% date %]</td>
     <td class="rev">[% IF isdir %]
-        <a href="[% script %]/[% repos %]/browse[% path | uri | html %]?rev=[% rev %]">[% rev %]</a>
+        <a href="[% c.script %]/[% c.repos %]/browse[% c.path | uri | html %]?rev=[% rev %]">[% rev %]</a>
       [% ELSE %]
-        <a href="[% script %]/[% repos %]/view[% path | uri | html %]?rev=[% rev %]">[% rev %]</a>
+        <a href="[% c.script %]/[% c.repos %]/view[% c.path | uri | html %]?rev=[% rev %]">[% rev %]</a>
       [% END %]</td>
-    <td class="chgset"><a href="[% script %]/[% repos %]/revision/?rev=[% rev %]">[% rev %]</a></td>
+    <td class="chgset"><a href="[% c.script %]/[% c.repos %]/revision/?rev=[% rev %]">[% rev %]</a></td>
     <td class="author">[% author || '(no author)' %]</td>
     [% IF ! isdir %]<td class="diff">[% UNLESS loop.count == loop.size %]
         [% prev = loop.count %]
-        <a href="[% script %]/[% repos %]/diff[% path | uri | html %]?rev1=[% rev - 1 %];rev2=[% rev %]">HTML</a> | <a href="[% script %]/[% repos %]/diff[% path | uri | html %]?rev1=[% rev - 1 %];rev2=[% rev %];mime=text/plain">TEXT</a><br/>
+        <a href="[% c.script %]/[% c.repos %]/diff[% c.path | uri | html %]?rev1=[% rev - 1 %];rev2=[% rev %]">HTML</a> | <a href="[% c.script %]/[% c.repos %]/diff[% c.path | uri | html %]?rev1=[% rev - 1 %];rev2=[% rev %];mime=text/plain">TEXT</a><br/>
       [% END %]</td>[% END %]
-    <td class="summary">[% msg | log_msg %]
+    <td class="summary">[% log_msg(msg) %]
 
       [% FOREACH pk = paths %]
         [% IF pk.value.isdir %]
           [% IF pk.value.copyfrom %]
-            Copied from <a href="[% script %]/[% repos %]/browse[% pk.value.copyfrom %]?rev=[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%]%1:%2[%END%]</a><br />
+            Copied from <a href="[% c.script %]/[% c.repos %]/browse[% pk.value.copyfrom %]?rev=[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%]%1:%2[%END%]</a><br />
           [% END %]
         [% ELSE %]
           [% IF pk.value.copyfrom %]
-            Copied from <a href="[% script %]/[% repos %]/log[% pk.value.copyfrom %]?rev=[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%]%1:%2[%END%]</a><br />
+            Copied from <a href="[% c.script %]/[% c.repos %]/log[% pk.value.copyfrom %]?rev=[% pk.value.copyfromrev %]">[%|l(pk.value.copyfrom, pk.value.copyfromrev)%]%1:%2[%END%]</a><br />
           [% END %]
         [% END %]
       [% END %]

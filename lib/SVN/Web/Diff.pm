@@ -7,16 +7,15 @@ use warnings;
 
 use base 'SVN::Web::action';
 
-use Text::Diff;
+use File::Temp;
+
 use SVN::Core;
-use SVN::Repos;
-use SVN::Fs;
+use SVN::Ra;
+use SVN::Client;
 use SVN::Web::X;
 use List::Util qw(max min);
 
-eval 'use SVN::DiffEditor 0.09; require IO::String; 1' and my $has_svk = 1;
-
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 =head1 NAME
 
@@ -52,7 +51,7 @@ The second revision of the file to compare.
 
 A list of two or more revisions.  If present, the smallest number in
 the list is assigned to C<rev1> (overriding any given C<rev1> value) and the
-largest number in the list is assigned to C<rev2> (overriding any given 
+largest number in the list is assigned to C<rev2> (overriding any given
 C<rev2> value).
 
 In other words:
@@ -67,20 +66,24 @@ This supports the "diff between arbitrary revisions" functionality.
 
 =item mime
 
-The desired output format.  The default is C<html> for an HTML, styled diff
-using L<Text::Diff::HTML>.  The other allowed value is C<text>, for a plain
-text unified diff.
-
-=item context
-
-The number of lines of context to show around each change.  Uses the global
-default if not set.
+The desired output format.  The default is C<html> for a diff marked
+up in HTML.  The other allowed value is C<text>, for a plain text
+unified diff.
 
 =back
 
 =head1 TEMPLATE VARIABLES
 
 =over 8
+
+=item at_head
+
+Boolean, indicating whether or not we're currently diffing against the
+youngest revision of this file.
+
+=item context
+
+Always C<file>.
 
 =item rev1
 
@@ -92,24 +95,31 @@ parameter, either set explicitly, or extracted from C<revs>.
 The second revision of the file to compare.  Corresponds with the C<rev2>
 parameter, either set explicitly, or extracted from C<revs>.
 
-=back
+=item diff
 
-In addition, if C<mime> is C<html> then raw HTML is returned for
-immediate insertion in to the template.  If C<mime> is C<text> then
-the template is bypassed and plain text is returned.
+An L<SVN::Web::DiffParser> object that contains the text of the diff.
+Call the object's methods to format the diff.
+
+=back
 
 =head1 EXCEPTIONS
 
 =over 4
 
+=item (cannot diff nodes of different types: %1 %2 %3)
+
+The given path has different node types at the different revisions.
+This probably means a file was added, deleted, and then re-added as a
+directory at a later date (or vice-versa).
+
+=item (path %1 is a directory at rev %2)
+
+The user has tried to diff two directories.  This is not currently
+supported.
+
 =item (path %1 does not exist in revision %2)
 
 The given path is not present in the repository at the given revision.
-
-=item (directory diff requires svk)
-
-Showing the difference between two directories needs the SVN::DiffEditor
-module.
 
 =item (two revisions must be provided)
 
@@ -139,81 +149,71 @@ sub run {
 
     my($rev1, $rev2) = $self->_check_params();
 
-    my $pool = SVN::Pool->new_default_sub;
-    my $fs   = $self->{repos}->fs;
+    my $ctx  = $self->{repos}{client};
+    my $ra   = $self->{repos}{ra};
+    my $uri  = $self->{repos}{uri};
     my $path = $self->{path};
 
+    my(undef, undef, undef, $at_head) = $self->get_revs();
+
     my $mime = $self->{cgi}->param('mime') || 'text/html';
-    my $context = $self->{cgi}->param('context')
-        || $self->{config}->{diff_context};
 
-    my $rev1_root = $fs->revision_root($rev1);
-    my $rev2_root = $fs->revision_root($rev2);
+    my %types = ( $rev1 => $ra->check_path($path, $rev1),
+		  $rev2 => $ra->check_path($path, $rev2) );
 
-    $self->_check_path($path, $rev1, $fs);
-    $self->_check_path($path, $rev2, $fs);
+    SVN::Web::X->throw(error => '(cannot diff nodes of different types: %1 %2 %3)',
+		       vars  => [$path, $rev1, $rev2])
+	if $types{$rev1} != $types{$rev2};
 
-    my $kind  = $rev1_root->check_path($path);
-    my $output;
+    foreach my $rev ($rev1, $rev2) {
+	SVN::Web::X->throw(error => '(path %1 does not exist in revision %2)',
+			   vars  => [$path, $rev])
+	    if $types{$rev} == $SVN::Node::none;
 
-    if($kind == $SVN::Node::dir) {
-        SVN::Web::X->throw(
-            error => '(directory diff requires svk)',
-            vars  => []
-            )
-            unless $has_svk;
-
-        $path =~ s|/$||;
-
-        my $editor = SVN::DiffEditor->new(
-            cb_basecontent => sub {
-                my($rpath) = @_;
-                my $base = $rev1_root->file_contents("$path/$rpath");
-                return $base;
-            },
-            cb_baseprop => sub {
-                my($rpath, $pname) = @_;
-                return $rev1_root->node_prop("$path/$rpath", $pname);
-            },
-            llabel => "revision $rev1",
-            rlabel => "revision $rev2",
-            lpath  => $path,
-            rpath  => $path,
-            fh     => IO::String->new(\$output)
-        );
-
-        SVN::Repos::dir_delta($rev1_root, $path, '', $rev2_root, $path,
-			      $editor, undef, 1, 1, 0, 1);
-    } else {
-        my $style;
-        $mime eq 'text/html'  and $style = 'Text::Diff::HTML';
-        $mime eq 'text/plain' and $style = 'Unified';
-
-        $output = Text::Diff::diff(
-            $rev1_root->file_contents($path),
-            $rev2_root->file_contents($path),
-            {   STYLE   => $style,
-                CONTEXT => $context,
-            }
-        );
+	SVN::Web::X->throw(error => '(path %1 is a directory at rev %2)',
+			   vars  => [$path, $rev])
+	    if $types{$rev} == $SVN::Node::dir;
     }
 
-    if($mime eq 'text/html') {
-	$output = $self->_munge_html_diff($output);
+    my $style;
+    $mime eq 'text/html'  and $style = 'Text::Diff::HTML';
+    $mime eq 'text/plain' and $style = 'Unified';
 
-        return {
-            template => 'diff',
-            data     => {
-                rev1 => $rev1,
-                rev2 => $rev2,
-                body => $output
-            }
-        };
+    my($out_h, $out_fn) = File::Temp::tempfile();
+    my($err_h, $err_fn) = File::Temp::tempfile();
+
+    $ctx->diff([], "$uri$path", $rev1, "$uri$path", $rev2,
+	       0, 1, 0, $out_h, $err_h);
+
+    my $out_c;
+    local $/ = undef;
+    seek($out_h, 0, 0);
+    $out_c = <$out_h>;
+
+    unlink($out_fn);
+    unlink($err_fn);
+    close($out_h);
+    close($err_h);
+
+    if($mime eq 'text/html') {
+	use SVN::Web::DiffParser;
+	my $diff = SVN::Web::DiffParser->new($out_c);
+
+	return {
+	    template => 'diff',
+	    data     => {
+		context => 'file',
+		rev1    => $rev1,
+		rev2    => $rev2,
+		diff    => $diff,
+		at_head => $at_head,
+	    }
+	};
     } else {
-        return {
-            mimetype => $mime,
-            body     => $output
-        };
+	return {
+	    mimetype => $mime,
+	    body     => $out_c,
+	}
     }
 }
 
@@ -256,12 +256,10 @@ sub _check_path {
     my $self = shift;
     my $path = shift;
     my $rev  = shift;
-    my $fs   = shift;
 
-    my $root = $fs->revision_root($rev);
-    my $kind = $root->check_path($path);
+    my $ra   = $self->{repos}{ra};
 
-    if($kind == $SVN::Node::none) {
+    if($ra->check_path($path, $rev) == $SVN::Node::none) {
 	SVN::Web::X->throw(
 	    error => '(path %1 does not exist in revision %2)',
             vars  => [$path, $rev],
@@ -270,3 +268,16 @@ sub _check_path {
 }
 
 1;
+
+=head1 COPYRIGHT
+
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

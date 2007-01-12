@@ -48,12 +48,10 @@ my %feature     = ();
 my %config_data = ();
 my %requires    = ('Template'                           => 0,
 		   'YAML'                               => 0,
-		   'Text::Diff'                         => 0,
-		   'Text::Diff::HTML'                   => 0,
 		   'Number::Format'                     => 0,
 		   'Template::Plugin::Number::Format'   => 0,
+		   'Locale::Maketext'			=> 0,
 		   'Locale::Maketext::Lexicon'          => 0,
-		   'Locale::Maketext::Simple'           => 0,
 		   'Exception::Class'                   => 1.22,
 		   'List::Util'                         => 0,
 		   'URI'                                => 0,
@@ -77,6 +75,7 @@ Build.PL
                 [--run_svnweb-server_tests]
                 [--httpd_port PORT]
                 [--skip_questions]
+                [-- --Module::Build options]
 
 =head1 DESCRIPTION
 
@@ -139,6 +138,10 @@ before creating the build script.
 
 =back
 
+You may also provide all the usual options that L<Module::Build> supports.
+However, these options should appear after the options described
+previously, and should be preceeded by C<-->.
+
 =cut
 
 my $skip_questions = 0;
@@ -177,7 +180,7 @@ Press RETURN to continue.
 
 EOM
 
-<>;
+<STDIN>;
 
 # ------------------------------------------------------------------------
 
@@ -281,16 +284,16 @@ if($feature{run_apache_tests}) {
 }
 
 # Find the mod_perl .so
-my $libexec_dir;
-if(exists $config_data{apxs_path}) {
+if(exists $config_data{apxs_path} and defined $config_data{apxs_path}) {
+    my $libexec_dir;
     chomp($libexec_dir = `$config_data{apxs_path} -q LIBEXECDIR`);
     $config_data{libexec_dir} = $libexec_dir;
-}
 
-foreach my $file (qw(mod_perl.so libperl.so)) {
-    if(-f "$libexec_dir/$file") {
-	$config_data{mod_perl_path} = "$libexec_dir/$file";
-	last;
+    foreach my $file (qw(mod_perl.so libperl.so)) {
+        if(-f "$libexec_dir/$file") {
+            $config_data{mod_perl_path} = "$libexec_dir/$file";
+	    last;
+        }
     }
 }
 

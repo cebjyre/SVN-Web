@@ -6,9 +6,12 @@ conf/apache1.tt
 conf/apache2.tt
 lib/SVN/Web.pm
 lib/SVN/Web/action.pm
+lib/SVN/Web/Blame.pm
 lib/SVN/Web/Browse.pm
 lib/SVN/Web/Checkout.pm
 lib/SVN/Web/Diff.pm
+lib/SVN/Web/DiffParser.pm
+lib/SVN/Web/I18N.pm
 lib/SVN/Web/I18N/en.po
 lib/SVN/Web/I18N/fr.po
 lib/SVN/Web/I18N/zh_cn.po
@@ -41,6 +44,10 @@ lib/SVN/Web/Template/plain/log
 lib/SVN/Web/Template/plain/revision
 lib/SVN/Web/Template/plain/view
 lib/SVN/Web/Template/plain/x
+lib/SVN/Web/Template/trac/_action_menu
+lib/SVN/Web/Template/trac/_diff
+lib/SVN/Web/Template/trac/_log_msg
+lib/SVN/Web/Template/trac/blame
 lib/SVN/Web/Template/trac/browse
 lib/SVN/Web/Template/trac/diff
 lib/SVN/Web/Template/trac/footer

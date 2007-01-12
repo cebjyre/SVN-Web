@@ -2,6 +2,7 @@
 use strict;
 
 use Test::More;
+use POSIX ();
 
 use SVN::Web::Test;
 
@@ -18,9 +19,11 @@ my $repos = 't/repos';
 my $test = SVN::Web::Test->new(repo_path => $repos,
 			       repo_dump => 't/test_repo.dump');
 
+my $repo_url = 'file://' . POSIX::getcwd() . '/t/repos';
+
 $test->set_config({ uri_base => 'http://localhost',
 		    script   => '/svnweb',
-		    config   => { repos => { repos => $repos } },
+		    config   => { repos => { repos => $repo_url } },
 		    });
 
 my $url  = $test->site_root();
@@ -67,6 +70,6 @@ sub store_content {
 sub check_content {
     my $test = shift;
 
-    Test::Differences::eq_or_diff($test->mech()->content(), $store{$test->mech()->uri()}, $test->mech()->uri());
+    Test::Differences::eq_or_diff($test->mech()->content(), $store{$test->mech()->uri()}, "$test->mech()->uri()");
 }
 

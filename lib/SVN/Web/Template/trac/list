@@ -6,7 +6,7 @@
 
 <ul>
   [% FOREACH r = repos %]
- <li><a href="[% script %]/[% r %]">[% r %]</a></li>
+ <li><a href="[% c.script %]/[% r.key %]">[% r.key %]</a> <span class="reponame">&#8594; [% r.value %]</span></li>
   [% END %]
 </ul>
 [% ELSE %]
@@ -14,4 +14,5 @@
 [%|l%](no repos)[%END%]
 </p>
 [% END %]
+
 [% PROCESS footer %]

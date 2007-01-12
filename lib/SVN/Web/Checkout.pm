@@ -5,12 +5,9 @@ use warnings;
 
 use base 'SVN::Web::action';
 
-use SVN::Core;
-use SVN::Repos;
-use SVN::Fs;
 use SVN::Web::X;
 
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 =head1 NAME
 
@@ -24,6 +21,10 @@ In F<config.yaml>
     ...
     checkout:
       class: SVN::Web::Checkout
+      action_menu:
+        show:
+          - file
+        link_text: (checkout)
     ...
 
 =head1 DESCRIPTION
@@ -60,25 +61,53 @@ The given path is not a file in the given revision.
 
 sub run {
     my $self = shift;
-    my $pool = SVN::Pool->new_default_sub;
-    my $fs   = $self->{repos}->fs;
-    my $rev  = $self->{cgi}->param('rev') || $fs->youngest_rev;
-    my $root = $fs->revision_root($rev);
+    my $ctx  = $self->{repos}{client};
+    my $ra   = $self->{repos}{ra};
+    my $uri  = $self->{repos}{uri};
+    my $rev  = $self->{cgi}->param('rev') || $ra->get_latest_revnum();
     my $path = $self->{path};
 
-    if(!$root->is_file($path)) {
+    my $node_kind;
+    $ctx->info("$uri$path", $rev, $rev,
+	       sub { $node_kind = $_[1]->kind(); }, 0);
+
+    if($node_kind != $SVN::Node::file) {
         SVN::Web::X->throw(
             error => '(path %1 is not a file in revision %2)',
             vars  => [$path, $rev]
         );
     }
 
-    my $file = $root->file_contents($path);
-    local $/;
+    my($fh, $fc) = (undef, '');
+    open($fh, '>', \$fc);
+    $ctx->cat($fh, $uri . $path, $rev);
+    close($fh);
+
+    my $mime_type;
+    my $props = $ctx->propget('svn:mime-type', $uri . $path, $rev, 0);
+    if(exists $props->{$uri . $path}) {
+	$mime_type = $props->{$uri . $path};
+    } else {
+	$mime_type = 'text/plain';
+    }
+
     return {
-        mimetype => $root->node_prop($path, 'svn:mime-type')
-            || 'text/plain',
-        body => <$file>
+        mimetype => $mime_type,
+        body => $fc,
     };
 }
+
 1;
+
+=head1 COPYRIGHT
+
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

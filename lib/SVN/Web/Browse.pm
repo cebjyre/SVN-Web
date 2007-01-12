@@ -5,14 +5,11 @@ use warnings;
 
 use base 'SVN::Web::action';
 
-use SVN::Core;
-use SVN::Repos;
-use SVN::Fs;
+use SVN::Ra;
+use SVN::Client;
 use SVN::Web::X;
 
-use Time::Local;
-
-our $VERSION = 0.49;
+our $VERSION = 0.50;
 
 =head1 NAME
 
@@ -26,6 +23,10 @@ In F<config.yaml>
     ...
     browse:
       class: SVN::Web::Browse
+      action_menu:
+        show:
+          - directory
+        link_text: (browse directory)
     ...
 
 =head1 DESCRIPTION
@@ -51,6 +52,10 @@ revision.
 
 A boolean value, indicating whether or not the user is currently
 browsing the HEAD of the repository.
+
+=item context
+
+Always C<directory>.
 
 =item entries
 
@@ -118,6 +123,11 @@ The repository's youngest revision.
 
 The given path is not present in the repository at the given revision.
 
+=item (path %1 is not a directory in revision %2)
+
+The given path exists in the repository at the given revision, but is
+not a directory.  This action is only used to browse directories.
+
 =back
 
 =cut
@@ -133,65 +143,61 @@ sub cache_key {
 
 sub run {
     my $self = shift;
-    my $fs   = $self->{repos}->fs;
+    my $ctx  = $self->{repos}{client};
+    my $ra   = $self->{repos}{ra};
     my $path = $self->{path};
+
+    my $uri  = $path eq '/' ? $self->{repos}{uri}
+                            : $self->{repos}{uri} . $path;
 
     my($exp_rev, $yng_rev, $act_rev, $at_head) = $self->get_revs();
 
-    my $rev = $act_rev;
+    my $rev  = $act_rev;
 
-    my $root = $fs->revision_root($rev);
-    my $kind = $root->check_path($path);
+    my $node_kind;
+    $ctx->info($uri, $rev, $rev,
+	       sub { $node_kind = $_[1]->kind(); }, 0);
 
-    if($path !~ m|/$|) {
-        print $self->{cgi}->redirect(-uri => $self->{cgi}->self_url() . '/');
-        return;
-    }
-    $path =~ s|/$|| unless $path eq '/';
-
-    if($kind == $SVN::Node::none) {
+    if($node_kind == $SVN::Node::none) {
         SVN::Web::X->throw(
             error => '(path %1 does not exist in revision %2)',
             vars  => [$path, $rev]
         );
     }
 
-    die "not a directory in browse" unless $kind == $SVN::Node::dir;
+    if($node_kind != $SVN::Node::dir) {
+	SVN::Web::X->throw(
+	    error => '(path %1 is not a directory in revision %2)',
+	    vars  => [$path, $rev],
+	);
+    }
 
-    my $entries = [
-        map {
-            {   name  => $_->name,
-                kind  => $_->kind,
-                isdir => ($_->kind == $SVN::Node::dir),
-            }
-            } values %{ $root->dir_entries($path) }
-    ];
+    my $dirents = $ctx->ls($uri, $rev, 0);
 
-    my $spool = SVN::Pool->new_default;
-    for(@$entries) {
-        my $path = "$self->{path}$_->{name}";
-        $_->{rev} = (
-            $fs->revision_root($rev)->node_history($path)->prev(0)->location)
-            [1];
-        $_->{size} =
-            $_->{isdir}
-            ? ''
-            : $root->file_length($path);
-        $_->{type}
-            = $root->node_prop($path, 'svn:mime-type')
-            unless $_->{isdir};
-        $_->{type} =~ s|/\w+|| if $_->{type};
+    my $entries = [];
+    my($name, $dirent);
+    my $current_time = time();
 
-        $_->{author}        = $fs->revision_prop($_->{rev}, 'svn:author');
-        $_->{date_modified} = $fs->revision_prop($_->{rev}, 'svn:date');
-        my($y, $m, $d, $h, $M, $s)
-            = $_->{date_modified} =~ /^(....)-(..)-(..)T(..):(..):(..)/;
-        my $time = timegm($s, $M, $h, $d, $m - 1, $y);
-	$_->{date_modified} = $self->format_svn_timestamp($_->{date_modified});
-        $_->{age} = time() - $time;
-        $_->{msg} = $fs->revision_prop($_->{rev}, 'svn:log');
+    while(($name, $dirent) = each %{ $dirents }) {
+	my $kind = $dirent->kind();
+	my $entry_path = $path eq '/' ? "$path$name"
+	                              : "$path/$name";
 
-        $spool->clear;
+	my @log_result = $self->recent_interesting_rev($entry_path, $rev);
+	
+	push @{ $entries }, {
+	    name      => $name,
+	    rev       => $log_result[1],
+	    display_rev => $dirent->created_rev(),
+	    kind      => $kind,
+	    isdir     => ($kind == $SVN::Node::dir),
+	    size      => ($kind == $SVN::Node::dir ? '' : $dirent->size()),
+	    author    => $dirent->last_author(),
+	    has_props => $dirent->has_props(),
+	    time      => $dirent->time() / 1_000_000,
+            age       => $current_time - ($dirent->time() / 1_000_000),
+	    msg       => $log_result[4],
+	  };
     }
 
     # TODO: custom sorting
@@ -201,20 +207,17 @@ sub run {
 
     my @props = ();
     foreach my $prop_name (qw(svn:externals)) {
-        my $prop_value = $root->node_prop($path, $prop_name);
-        if(defined $prop_value) {
-            $prop_value =~ s/\s*\n$//ms;
-            push @props,
-                {
-                name  => $prop_name,
-                value => $prop_value,
-                };
-        }
+	my $prop_value = ($ctx->revprop_get($prop_name, $uri, $rev))[0];
+	if(defined $prop_value) {
+	    $prop_value =~ s/\s*\n$//ms;
+	    push @props, { name => $prop_name, value => $prop_value };
+	}
     }
 
     return {
         template => 'browse',
         data     => {
+	    context      => 'directory',
             entries      => $entries,
             rev          => $act_rev,
             youngest_rev => $yng_rev,
@@ -225,3 +228,16 @@ sub run {
 }
 
 1;
+
+=head1 COPYRIGHT
+
+Copyright 2003-2004 by Chia-liang Kao C<< <clkao@clkao.org> >>.
+
+Copyright 2005-2007 by Nik Clayton C<< <nik@FreeBSD.org> >>.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

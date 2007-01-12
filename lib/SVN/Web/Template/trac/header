@@ -7,26 +7,28 @@
 [% revstr = "?rev=$rev" %]
 [% END %]
 
+[% IF c.path == '/'; c.path = ''; END %]
+
 <html>
   <head>
-    <title>[% IF action == 'list' %][%|l%](repository list)[%END%][% ELSE %][% action %]: /[% repos %][% path %][% END %] ([% IF rev %]Rev: [% at_head ? 'HEAD' : rev %], [% END %][%|l%](via)[%END%] SVN::Web)</title>
+    <title>[% IF c.action == 'list' %][%|l%](repository list)[%END%][% ELSE %][% c.action %]: /[% c.repos %][% c.path %][% END %] ([% IF rev %]Rev: [% at_head ? 'HEAD' : rev %], [% END %][%|l%](via)[%END%] SVN::Web)</title>
     [% IF style %]
       <link rel="stylesheet" href="[% style %]" type="text/css" />
     [% ELSE %]
-      <link rel="stylesheet" type="text/css" href="[% base_uri %]/css/trac/svnweb.css" />
+      <link rel="stylesheet" type="text/css" href="[% c.base_uri %]/css/trac/svnweb.css" />
     [% END %]
-    [% IF action.match('^(?:browse|log|view)$') AND at_head %]
+    [% IF c.action.match('^(?:browse|log|view)$') AND at_head %]
       <link rel="alternate" type="application/rss+xml"
-        title="RSS Feed for [% path | uri | html %]"
-        href="[% script %]/[% repos %]/rss[% path | uri | html %]" />
+        title="RSS Feed for [% c.path | uri | html %]"
+        href="[% c.script %]/[% c.repos %]/rss[% c.path | uri | html %]" />
     [% END %]
   </head>
   <body>
     <div>
       [% UNLESS nonav %]
       <div id="navpath">
-	<h1><a class="first" href="[% script %]/">[%|l%](repository list)[%END%]</a> /  [% url = [script,repos,''] %]  [% url = url.join('/') %]  [% urlpath = ['',''] %]<a href="[% url %]">[% repos %]</a>
-            [% FOREACH p = navpaths %]
+	<h1><a class="first" href="[% c.script %]/">[%|l%](repository list)[%END%]</a> /  [% url = [c.script,c.repos,''] %]  [% url = url.join('/') %]  [% urlpath = ['',''] %]<a href="[% url %]">[% c.repos %]</a>
+            [% FOREACH p = c.navpaths %]
               [% CALL urlpath.splice(-1, 0, p) %]
               [% IF loop.count == loop.size %]
                 [% IF p %]
@@ -40,16 +42,16 @@
       [% END %]
 
       <div id="language-selection">
-        <form action="[% self_uri %]">
+        <form action="[% c.self_uri %]">
           <select name="lang" onchange="this.form.submit();">
-          [% FOREACH curlang IN languages -%]
+          [% FOREACH curlang IN c.languages -%]
             <option value="[% curlang.key %]"
-            [%- IF curlang.key == lang %] selected="yes"[% END %]>[% curlang.value %]</option>
+            [%- IF curlang.key == c.lang %] selected="yes"[% END %]>[% curlang.value %]</option>
           [% END %]
           </select>
-          [% FOREACH param IN cgi.param %]
+          [% FOREACH param IN c.cgi.param %]
             [% NEXT IF param == 'lang' %] 
-            <input type="hidden" name="[% param %]" value="[% cgi.param(param) %]" />
+            <input type="hidden" name="[% param %]" value="[% c.cgi.param(param) %]" />
           [% END %]
           <noscript>
             <input type="submit" value="Go" />

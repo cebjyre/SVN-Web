@@ -20,7 +20,8 @@ my $port  = SVN::Web::ConfigData->config('httpd_port');
 
 my $test = SVN::Web::Test->new(repo_path    => 't/repos',
 			       repo_dump    => 't/test_repo.dump',
-			       httpd_port   => $port);
+			       httpd_port   => $port,
+			       root_url     => "http://localhost:$port");
 
 my $cwd = POSIX::getcwd();
 my $dir = $test->install_dir();
