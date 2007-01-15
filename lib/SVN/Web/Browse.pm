@@ -9,7 +9,7 @@ use SVN::Ra;
 use SVN::Client;
 use SVN::Web::X;
 
-our $VERSION = 0.50;
+our $VERSION = 0.51;
 
 =head1 NAME
 
@@ -188,7 +188,6 @@ sub run {
 	push @{ $entries }, {
 	    name      => $name,
 	    rev       => $log_result[1],
-	    display_rev => $dirent->created_rev(),
 	    kind      => $kind,
 	    isdir     => ($kind == $SVN::Node::dir),
 	    size      => ($kind == $SVN::Node::dir ? '' : $dirent->size()),

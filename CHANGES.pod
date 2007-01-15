@@ -12,7 +12,19 @@ This is a list of the main changes between different versions of
 SVN::Web.  Please see L<UPDATING.pod> for details about any changes
 you may need to make when updating an SVN::Web installation.
 
-=head2 0.50,
+=head2 0.51, released Jan 15, 2007
+
+=over
+
+=item
+
+C<reposparent> functionality was inadvertently broken in 0.50.  This
+release fixes that.  This was rt#24377 reported by Christoph Buescher 
+<Christoph.Buescher@fiducia.de>.
+
+=back
+
+=head2 0.50, released Jan 12, 2007
 
 =over
 

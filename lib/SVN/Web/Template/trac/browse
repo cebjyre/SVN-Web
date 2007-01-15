@@ -35,7 +35,7 @@
         <a class="file" href="[% c.script %]/[% c.repos %]/view[% c.path | uri | html%]/[% name | uri | html %][% revstr %]">[% name %]</a>
       [% END %]
       </td>
-      <td class="rev"><a href="[% c.script %]/[% c.repos %]/revision?rev=[% display_rev %]">[% display_rev %]</a></td>
+      <td class="rev"><a href="[% c.script %]/[% c.repos %]/revision?rev=[% rev %]">[% rev %]</a></td>
       <td class="size">[% IF ! isdir; size | format_bytes; END %]</td>
 [% quanta = { '60'         => 'second',
               '3600'       => 'minute',

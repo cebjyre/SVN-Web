@@ -39,10 +39,6 @@ Some ideas for new actions include:
 
 =over
 
-=item annotate
-
-By analogy with C<svn annotate>
-
 =item help
 
 Would display help to the user.

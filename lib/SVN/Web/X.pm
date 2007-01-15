@@ -1,6 +1,6 @@
 package SVN::Web::X;
 
-our $VERSION = 0.50;
+our $VERSION = 0.51;
 
 use Exception::Class('SVN::Web::X' => { fields => ['vars'], },);
 

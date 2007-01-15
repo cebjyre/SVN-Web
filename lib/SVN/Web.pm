@@ -28,7 +28,7 @@ SVN::Web::I18N::loc_lang('en');
 use constant mod_perl_2 =>
     (exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2);
 
-our $VERSION = 0.50;
+our $VERSION = 0.51;
 
 my $template;
 my $config;
@@ -132,7 +132,7 @@ sub get_repos {
     SVN::Web::X->throw(
         error => '(no such repo %1 %2)',
         vars  => [$repos, $repo_uri]
-    ) unless defined $repos and exists $config->{repos}{$repos};
+    ) unless defined $repos and (exists $config->{repos}{$repos} or -e $repo_uri);
 
     $repo_uri =~ s{/$}{}g;	# Trim trailing '/', SVN::Repos::open fails
 				# otherwise
@@ -959,7 +959,7 @@ SVN::Web's configuration file must contain a version number.  If this
 number is missing, or does not match the version number of the version
 of SVN::Web that is being used then a fatal error will occur.
 
-  version: 0.50
+  version: 0.51
 
 =head2 Repositories
 

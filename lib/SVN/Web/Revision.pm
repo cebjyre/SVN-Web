@@ -11,7 +11,7 @@ use SVN::Ra;
 use SVN::Web::X;
 use SVN::Web::DiffParser;
 
-our $VERSION = 0.50;
+our $VERSION = 0.51;
 
 =head1 NAME
 
