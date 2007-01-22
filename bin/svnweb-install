@@ -54,7 +54,7 @@ while(my($from, $to) = each %targets) {
 }
 
 print $fh <<END;
-version: 0.51
+version: 0.52
 
 # Actions, the classes that implement them, and where they should appear
 # in the action menu

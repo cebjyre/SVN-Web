@@ -14,13 +14,14 @@ use Module::Build;
 
 # $SVN::Core::VERSION is set in a manner that confuses Module::Build, so
 # do an explicit version check here.
-my $required_svn = '1.0.4';
+my $svn_maj = 1;
+my $svn_min = 4;	# Need Subversion 1.4.x or above
 
-die << "." unless eval { require SVN::Core; SVN::Core->VERSION ge $required_svn; };
+die << "." unless eval { no warnings 'once'; require SVN::Core; $SVN::Core::VER_MAJOR > $svn_maj or ($SVN::Core::VER_MAJOR == $svn_maj and $SVN::Core::VER_MINOR >= $svn_min); };
 ===> Warning: SVN::Core is missing or outdated.
 
 Please manually install SVN::Core by compiling Subversion
-(version $required_svn or above) with SWIG/Perl bindings,
+(version $svn_maj.$svn_min.0 or above) with SWIG/Perl bindings,
 and try this installation process again.
 .
 

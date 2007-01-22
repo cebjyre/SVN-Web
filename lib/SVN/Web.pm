@@ -28,7 +28,7 @@ SVN::Web::I18N::loc_lang('en');
 use constant mod_perl_2 =>
     (exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2);
 
-our $VERSION = 0.51;
+our $VERSION = 0.52;
 
 my $template;
 my $config;
@@ -959,7 +959,7 @@ SVN::Web's configuration file must contain a version number.  If this
 number is missing, or does not match the version number of the version
 of SVN::Web that is being used then a fatal error will occur.
 
-  version: 0.51
+  version: 0.52
 
 =head2 Repositories
 

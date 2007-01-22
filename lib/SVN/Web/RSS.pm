@@ -3,7 +3,7 @@ package SVN::Web::RSS;
 use strict;
 use SVN::Web::Log;
 
-our $VERSION = 0.51;
+our $VERSION = 0.52;
 
 =head1 NAME
 

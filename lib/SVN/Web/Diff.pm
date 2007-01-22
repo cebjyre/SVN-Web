@@ -15,7 +15,7 @@ use SVN::Client;
 use SVN::Web::X;
 use List::Util qw(max min);
 
-our $VERSION = 0.51;
+our $VERSION = 0.52;
 
 =head1 NAME
 
