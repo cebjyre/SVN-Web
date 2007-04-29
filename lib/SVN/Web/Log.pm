@@ -8,7 +8,7 @@ use SVN::Ra;
 
 use base 'SVN::Web::action';
 
-our $VERSION = 0.52;
+our $VERSION = 0.53;
 
 =head1 NAME
 

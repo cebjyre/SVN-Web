@@ -15,9 +15,9 @@
   [% IF mimetype.match('^text/') %]
     <pre class="code-block">[% file | html %]</pre>
   [% ELSIF mimetype.match('^image/') %]
-    <img src="[% c.script %]/[% c.repos %]/checkout[% c.path | uri | html %]" />
+    <img src="[% c.script %]/[% c.repos %]/checkout[% c.path %]" />
   [% ELSE %]
-<p>This file can not be displayed in the browser.  You can <a href="[% c.script %]/[% c.repos %]/checkout[% c.path | uri | html %]">download it</a>.</p>
+<p>This file can not be displayed in the browser.  You can <a href="[% c.script %]/[% c.repos %]/checkout[% c.path %]">download it</a>.</p>
   [% END %]
 </div>
 [% PROCESS footer %]

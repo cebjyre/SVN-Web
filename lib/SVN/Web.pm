@@ -28,7 +28,7 @@ SVN::Web::I18N::loc_lang('en');
 use constant mod_perl_2 =>
     (exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2);
 
-our $VERSION = 0.52;
+our $VERSION = 0.53;
 
 my $template;
 my $config;
@@ -350,6 +350,7 @@ sub cgi_output {
 	    -cookie  => \@cookies,
         );
 
+	$cfg->{path} = encode_path($cfg->{path});
         if($html->{template}) {
             $template->process($html->{template}, {
 		c => $cfg,
@@ -401,6 +402,7 @@ sub mod_perl_output {
 
         if($html->{template}) {
             $template ||= get_template();
+	    $cfg->{path} = encode_path($cfg->{path});
             $template->process($html->{template},
                 { c => $cfg, %{ $html->{data} } },
                 $cfg->{request})
@@ -797,6 +799,18 @@ sub handler {
     return $ok;
 }
 
+sub encode_path {
+    my $path = shift;
+
+    return unless defined $path;
+
+    my @path = split('/', $path);
+
+    $path = join('/', map { uri_escape($_) } @path);
+
+    return $path;
+}
+
 1;
 
 __END__
@@ -959,7 +973,7 @@ SVN::Web's configuration file must contain a version number.  If this
 number is missing, or does not match the version number of the version
 of SVN::Web that is being used then a fatal error will occur.
 
-  version: 0.52
+  version: 0.53
 
 =head2 Repositories
 

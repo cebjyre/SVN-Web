@@ -3,9 +3,14 @@
 use strict;
 use warnings;
 
-use SVN::Web::action;
+use POSIX qw(locale_h);
 
+use SVN::Web::action;
 use Test::More tests => 4;
+
+# Force the 'C' locale, so that tests give consistent results even if the
+# user running under a non-English locale.
+setlocale(LC_TIME, 'C');
 
 my %config = (timezone        => '',
 	      timedate_format => '%Y/%m/%d %H:%M:%S',

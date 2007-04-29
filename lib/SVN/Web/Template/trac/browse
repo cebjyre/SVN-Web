@@ -30,9 +30,9 @@
     <tr class="[% loop.count % 2 ? "even" : "odd" %]">
       <td class="name">
       [% IF isdir %]
-        <a class="dir" href="[% c.script %]/[% c.repos %]/browse[% c.path | uri | html %]/[% name | uri | html%][% revstr %]">[% name %]</a>
+        <a class="dir" href="[% c.script %]/[% c.repos %]/browse[% c.path %]/[% name | uri | html%][% revstr %]">[% name %]</a>
       [% ELSE %]
-        <a class="file" href="[% c.script %]/[% c.repos %]/view[% c.path | uri | html%]/[% name | uri | html %][% revstr %]">[% name %]</a>
+        <a class="file" href="[% c.script %]/[% c.repos %]/view[% c.path %]/[% name | uri | html %][% revstr %]">[% name %]</a>
       [% END %]
       </td>
       <td class="rev"><a href="[% c.script %]/[% c.repos %]/revision?rev=[% rev %]">[% rev %]</a></td>

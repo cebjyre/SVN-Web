@@ -13,7 +13,7 @@
 <div class="actions">
   <ul>
   [% FOREACH action IN active_actions %]
-    <li><a href="[% c.script %]/[% c.repos %]/[% action %][% c.path | uri | html %][% revstr %]">[% IF c.config.actions.$action.action_menu.icon %]<img class="icon" alt="" src="[% c.base_uri %][% c.config.actions.$action.action_menu.icon %]" /> [% END %][%|l%][% c.config.actions.$action.action_menu.link_text %][%END%]</a></li>
+    <li><a href="[% c.script %]/[% c.repos %]/[% action %][% c.path %][% revstr %]">[% IF c.config.actions.$action.action_menu.icon %]<img class="icon" alt="" src="[% c.base_uri %][% c.config.actions.$action.action_menu.icon %]" /> [% END %][%|l%][% c.config.actions.$action.action_menu.link_text %][%END%]</a></li>
   [% END %]
   </ul>
 </div>

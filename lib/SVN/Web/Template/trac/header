@@ -19,8 +19,8 @@
     [% END %]
     [% IF c.action.match('^(?:browse|log|view)$') AND at_head %]
       <link rel="alternate" type="application/rss+xml"
-        title="RSS Feed for [% c.path | uri | html %]"
-        href="[% c.script %]/[% c.repos %]/rss[% c.path | uri | html %]" />
+        title="RSS Feed for [% c.path %]"
+        href="[% c.script %]/[% c.repos %]/rss[% c.path %]" />
     [% END %]
   </head>
   <body>
@@ -35,7 +35,7 @@
                   <span class="sep">/</span>   [% p %]
                 [% END %]
               [% ELSE %]
-                <span class="sep">/</span>    <a href="[% url %]browse[% urlpath.join('/') | uri | html %][% revstr %]">[% p %]</a>
+                <span class="sep">/</span>    <a href="[% url %]browse[% urlpath.join('/') %][% revstr %]">[% p %]</a>
               [% END %]
           [% END %] @ [% at_head ? 'HEAD' : "r$rev" %]</h1>
       </div>

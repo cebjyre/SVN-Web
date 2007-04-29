@@ -15,7 +15,7 @@ use SVN::Client;
 use SVN::Web::X;
 use List::Util qw(max min);
 
-our $VERSION = 0.52;
+our $VERSION = 0.53;
 
 =head1 NAME
 
@@ -34,6 +34,22 @@ In F<config.yaml>
 =head1 DESCRIPTION
 
 Returns the difference between two revisions of the same file.
+
+=head1 CONFIGURATION
+
+The following configuration options may be specified in F<config.yaml>.
+
+=over
+
+=item max_diff_size
+
+If showing the diff (see C<show_diff>), this determines the maximum size
+of the diff that will be shown.  If the size of the generated diff (in
+bytes) is larger than this figure then it is not shown.
+
+Defaults to 200,000 bytes.
+
+=back
 
 =head1 OPTIONS
 
@@ -100,6 +116,14 @@ parameter, either set explicitly, or extracted from C<revs>.
 An L<SVN::Web::DiffParser> object that contains the text of the diff.
 Call the object's methods to format the diff.
 
+=item diff_size
+
+The size of the generated diff (before parsing).
+
+=item max_diff_size
+
+The configured maximum diff size.
+
 =back
 
 =head1 EXCEPTIONS
@@ -134,6 +158,10 @@ they're the same number.
 
 =cut
 
+my %default_opts = (
+    max_diff_size => 200_000,
+);
+
 sub cache_key {
     my $self = shift;
 
@@ -146,6 +174,8 @@ sub cache_key {
 
 sub run {
     my $self = shift;
+
+    $self->{opts} = { %default_opts, %{ $self->{opts} } };
 
     my($rev1, $rev2) = $self->_check_params();
 
@@ -195,18 +225,28 @@ sub run {
     close($out_h);
     close($err_h);
 
+    my $diff_size     = length($out_c);
+    my $max_diff_size = $self->{opts}{max_diff_size};
+
     if($mime eq 'text/html') {
 	use SVN::Web::DiffParser;
-	my $diff = SVN::Web::DiffParser->new($out_c);
+	my $diff;
+	my $diff_size     = length($out_c);
+	my $max_diff_size = $self->{opts}{max_diff_size} || 0;
+	if($diff_size <= $max_diff_size) {
+	    $diff = SVN::Web::DiffParser->new($out_c);
+	}
 
 	return {
 	    template => 'diff',
 	    data     => {
-		context => 'file',
-		rev1    => $rev1,
-		rev2    => $rev2,
-		diff    => $diff,
-		at_head => $at_head,
+		context       => 'file',
+		rev1          => $rev1,
+		rev2          => $rev2,
+		diff          => $diff,
+		diff_size     => $diff_size,
+		max_diff_size => $max_diff_size,
+		at_head       => $at_head,
 	    }
 	};
     } else {

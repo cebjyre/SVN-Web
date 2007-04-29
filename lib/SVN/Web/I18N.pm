@@ -6,7 +6,7 @@ use warnings;
 use base qw(Locale::Maketext);
 use Locale::Maketext::Lexicon;
 
-our $VERSION = 0.52;
+our $VERSION = 0.53;
 
 my $lh;
 

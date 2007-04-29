@@ -1,6 +1,6 @@
 package SVN::Web::action;
 
-our $VERSION = 0.52;
+our $VERSION = 0.53;
 
 use POSIX qw();
 use Time::Local qw(timegm_nocheck);

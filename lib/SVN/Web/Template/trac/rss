@@ -11,9 +11,9 @@
  xmlns:admin="http://webns.net/mvcb/"
 >
 
-<channel rdf:about="[% c.script %]/[% c.repos %]/log[% c.path | uri | html %]">
-  <title>[%|l%](revision log)[%END%] - [% c.path | uri | html %]</title>
-  <link>[% c.script %]/[% c.repos %]/log[% c.path | uri | html %]</link>
+<channel rdf:about="[% c.script %]/[% c.repos %]/log[% c.path %]">
+  <title>[%|l%](revision log)[%END%] - [% c.path %]</title>
+  <link>[% c.script %]/[% c.repos %]/log[% c.path %]</link>
   <description></description>
   <dc:date>[% revs.0.date %]</dc:date>
   [% IF publisher != '' %]<dc:publisher>[% publisher %]</dc:publisher>[% END %]

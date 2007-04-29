@@ -12,6 +12,23 @@ This is a list of the main changes between different versions of
 SVN::Web.  Please see L<UPDATING.pod> for details about any changes
 you may need to make when updating an SVN::Web installation.
 
+=head2 0.53, released Apr 29, 2007
+
+=over
+
+=item
+
+Change how path's are encoded, to work around new strictness in
+Template Toolkit's C<uri> filter.  SVN::Web now works with versions
+of TT > 2.15.
+
+=item
+
+Adjust F<t/timedate-format.t> to work correctly in non-English locales.
+Fixes rt#25435, reported by C<ema_zep@libero.it>.
+
+=back
+
 =head2 0.52, released Jan 22, 2007
 
 =over

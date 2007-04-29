@@ -36,6 +36,31 @@ any changes, as described below.
 If you have made local modifications then the following information should
 help you merge the changes in this version in to your modified files.
 
+=head2 0.52 to 0.53
+
+=over
+
+=item
+
+Update the C<version> key in your configuration file to 0.53.
+
+=item
+
+Subversion paths are now escaped by SVN::Web before being passed to the
+templates, resulting in a change to every template that contains a path.
+In general, this means that where previously you would write:
+
+  [% path | uri | html %]
+
+in a template, now you can just write
+
+  [% path %]
+
+If you do not re-run C<svnweb-install> when you upgrade to this
+version you B<must> update the templates by hand.
+
+=back
+
 =head2 0.51 to 0.52
 
 =over
