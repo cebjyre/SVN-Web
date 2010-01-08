@@ -61,6 +61,9 @@ my $test_sub = sub {
     # a ':'.  This catches template bugs with too many slashes.
     unlike($mech->uri(), qr{(?<!:)//}, 'URI does not contain "//"');
 
+    diag('skip static files checks in local tests: '.$mech->uri), return
+        if $mech->uri->path eq '/' or $mech->uri->path =~ m{/css/};
+
     $mech->content_unlike(qr'An error occured', '  and content was correct');
     if($can_tidy 
        and ($mech->uri() !~ m{ (?:

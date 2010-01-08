@@ -241,7 +241,7 @@ sub recent_interesting_rev {
     my $ra  = $self->{repos}{ra};
 
     my @log_result;
-    $ra->get_log([$path], $rev, 1, 1, 0, 1,
+    $ra->get_log([$self->rpath($path)], $rev, 1, 1, 0, 1,
                  sub { @log_result = @_; });
 
     return @log_result if wantarray();
@@ -371,5 +371,12 @@ under the same terms as Perl itself.
 See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =cut
+
+sub rpath {
+    my ($self,$p) = @_;
+    my $path = $p || $self->{path};
+    $path =~ s{^/}{} if $path;
+    return $path;
+}
 
 1;

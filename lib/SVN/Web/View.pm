@@ -134,7 +134,7 @@ sub run {
     my $rev = $act_rev;
 
     # Get the log for this revision of the file
-    $ra->get_log([$path], $rev, $rev, 1, 1, 1,
+    $ra->get_log([$self->rpath], $rev, $rev, 1, 1, 1,
         sub { $self->{REV} = $self->_log(@_) });
 
     # Get the text for this revision of the file
